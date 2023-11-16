@@ -11,9 +11,7 @@ FetchContent_MakeAvailable(SFML)
 
 add_executable(OffLaticeEdenModel src/main.cpp
         src/Cell.h
-        src/Cell.cpp
-        src/functions.h
-        src/functions.cpp)
+        src/Cell.cpp)
 target_link_libraries(OffLaticeEdenModel PRIVATE sfml-graphics)
 target_compile_features(OffLaticeEdenModel PRIVATE cxx_std_17)
 

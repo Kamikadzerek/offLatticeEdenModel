@@ -137,15 +137,10 @@ int main()
 
                 window.draw(cell->getCircleShape());
                 aliveCellsCounter--;
-                //                window.draw(cell->getCircleShape());
             }
         }
         //Update
-        for (Cell cellTemp: cells)
-        {
-        }
         //Render
-//        window.clear(BACKGROUND_COLOR);//Clear old frame
         iterationText.setString("Iteration: " + std::to_string(counter));
         aliveCellsText.setString("Alive cells: " + std::to_string(aliveCellsCounter));
         allCellsText.setString("All cells: " + std::to_string(cells.size()));
@@ -153,12 +148,6 @@ int main()
         window.draw(iterationText);
         window.draw(aliveCellsText);
         window.draw(allCellsText);
-        //Draw new frame
-//        for (Cell cell: cells)
-//        {
-//            sf::CircleShape circle = cell.getCircleShape();
-//            window.draw(circle);
-//        }
         window.display();//Tell app that window is done drawing
         sf::Texture texture;
         texture.create(window.getSize().x, window.getSize().y);
@@ -168,7 +157,7 @@ int main()
         filename = filename + ".jpg";
         if (texture.copyToImage().saveToFile("../Pictures/" + filename))
         {
-//            std::cout << "screenshot saved to " << filename << std::endl;
+            std::cout << "screenshot saved to " << filename << std::endl;
         }
         if(aliveCellsCounter >= 500){
             window.close();
