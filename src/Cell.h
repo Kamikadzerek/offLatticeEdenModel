@@ -13,10 +13,14 @@ public:
     bool getStatus() const;
     float getX() const;
     float getY() const;
+    float getRadius() const;
+    int getId() const;
 
 //    sf::ConvexShape Shape();
     sf::CircleShape getCircleShape();
 private:
+    static inline int counter = 0;
+    int id;
     bool status; //Dead-False, Alive-True
     float x;
     float y;

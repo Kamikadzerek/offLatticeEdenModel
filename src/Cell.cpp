@@ -7,8 +7,12 @@
 
 Cell::Cell(float X, float Y)
 {
+    id = counter;
+    counter++;
 //    std::cout<<"New cell: x = "<< X <<" y = "<<Y<<std::endl;
     extern const float RADIUS;
+    extern const float WIDTH;
+    extern const float HEIGHT;
     extern const sf::Color EDGE_COLOR;
     extern const sf::Color ALIVE_COLOR;
     status = true;
@@ -19,7 +23,7 @@ Cell::Cell(float X, float Y)
     circleShape.setFillColor(ALIVE_COLOR);
     circleShape.setRadius(radius);
     circleShape.setOutlineColor(EDGE_COLOR);
-    circleShape.setOutlineThickness(1);
+    circleShape.setOutlineThickness(2);
 
 }
 sf::CircleShape Cell::getCircleShape()
@@ -57,4 +61,12 @@ float Cell::getX() const
 float Cell::getY() const
 {
     return y;
+}
+float Cell::getRadius() const
+{
+    return radius;
+}
+int Cell::getId() const
+{
+    return id;
 }
