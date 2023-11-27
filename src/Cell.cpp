@@ -1,15 +1,9 @@
-//
-// Created by szymek on 10/22/23.
-//
-
 #include "Cell.h"
-#include <iostream>
 
 Cell::Cell(float X, float Y)
 {
     id = counter;
     counter++;
-//    std::cout<<"New cell: x = "<< X <<" y = "<<Y<<std::endl;
     extern const float RADIUS;
     extern const float OUTLINETHICNESS;
     extern const sf::Color EDGE_COLOR;
@@ -23,6 +17,7 @@ Cell::Cell(float X, float Y)
     circleShape.setRadius(radius-OUTLINETHICNESS/2);
     circleShape.setOutlineColor(EDGE_COLOR);
     circleShape.setOutlineThickness(OUTLINETHICNESS);
+    circleShape.setPointCount(100);
 
 }
 sf::CircleShape Cell::getCircleShape()

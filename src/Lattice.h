@@ -1,32 +1,47 @@
-#include "Cell.h"
+#include "SqrCell.h"
+#include <valarray>
 #include <vector>
-extern const float DISTANCE;
-class Lattice // store all cells
+extern const float SIZE;
+class Lattice
 {
 private:
     float initialX;
     float initialY;
     int iterationCounter;
     int aliveCellsCounter;
-    float spawnDistance = DISTANCE;
-    std::vector<Cell> cells;
-    std::vector<double> angles;
-    struct path{
-        float x;
-        float y;
+    std::vector<SqrCell> cells;
+    struct displacement
+    {
+        float dx,dy;
     };
-    static bool cellIsConflicting(const std::vector<Cell> &cells, float x, float y);
+    struct coords
+    {
+        float x,y;
+        bool operator <(const coords& coord) const
+        {
+            return (x < coord.x) || ((!(coord.x < x)) && (y < coord.y));
+        }
+    };
+    std::vector<displacement> displacements = {
+            {0, SIZE},
+            {0, -SIZE},
+            {SIZE, 0},
+            {SIZE, SIZE},
+            {SIZE, -SIZE},
+            {-SIZE, 0},
+            {-SIZE, SIZE},
+            {-SIZE, -SIZE},
+    };
+    static bool
+    cellIsConflicting(const std::vector<SqrCell> &cells, float x, float y);
 
 public:
     int getIterationCounter() const;
     int getAliveCellsCounter() const;
-    const std::vector<Cell> &getCells() const;
-    const std::vector<Cell *> &getCellsAlive() const;
+    const std::vector<SqrCell> &getCells() const;
     Lattice();
-    Lattice(float x, float y);
     void updateA(int numberOfIteration);
     void updateB(int numberOfIteration);
     void updateC(int numberOfIteration);
     void clear();
-
 };

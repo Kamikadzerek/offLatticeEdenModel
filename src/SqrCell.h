@@ -1,25 +1,25 @@
 #include "SFML/Graphics.hpp"
-class Cell
+class SqrCell
 {
 public:
-    Cell(float x, float y);
+    SqrCell(float x, float y);
 
     void alive();
     void death();
-    Cell &operator=(Cell cell);
+    SqrCell &operator=(SqrCell sqrCell);
     bool getStatus() const;
     float getX() const;
     float getY() const;
-    float getRadius() const;
+    float getSize() const;
     int getId() const;
 
-    sf::CircleShape getCircleShape();
+    sf::RectangleShape getRectangleShape();
 private:
     static inline int counter = 0;
     int id;
     bool status; //Dead-False, Alive-True
     float x;
     float y;
-    float radius;
-    sf::CircleShape circleShape;
+    float size;
+    sf::RectangleShape rectangleShape;
 };
