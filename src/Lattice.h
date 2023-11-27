@@ -10,7 +10,12 @@ private:
     int aliveCellsCounter;
     float spawnDistance = DISTANCE;
     std::vector<Cell> cells;
-    std::vector<Cell *> cellsAlive;
+    std::vector<double> angles;
+    struct path{
+        float x;
+        float y;
+    };
+    static bool cellIsConflicting(const std::vector<Cell> &cells, float x, float y);
 
 public:
     int getIterationCounter() const;
