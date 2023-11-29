@@ -1,1 +1,4 @@
 # offLatticeEdenModel
+## Instalation
+- cmake .
+- make 
