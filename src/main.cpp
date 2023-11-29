@@ -15,7 +15,7 @@ const bool DRAWONLYALIVE = false;
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
 const bool LATTICE = false;
-const char VERSION = 'C';
+const char VERSION = 'B';
 const int LIMITOFCELLS = 3000;
 extern const int NUMBEROFANGLES = 16;
 extern const float SIZE = 6;
@@ -50,6 +50,7 @@ int main()
     sf::Text timeText;
     sf::Text titleText;
     sf::Font font;
+    font.loadFromFile("../src/JetBrainsMono-Bold.ttf");
     font.loadFromFile("../../src/JetBrainsMono-Bold.ttf");
     iterationText.setPosition(0, 0);
     iterationText.setFont(font);
