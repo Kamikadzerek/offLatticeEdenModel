@@ -16,8 +16,11 @@ private:
         float y;
     };
     static bool cellIsConflicting(const std::vector<Cell> &cells, float x, float y);
+    float radiusOfFittedEdge(const sf::CircleShape edge);
 
 public:
+    sf::Vector2f getCenterOfMass();
+    sf::CircleShape getEdge();
     int getIterationCounter() const;
     int getAliveCellsCounter() const;
     const std::vector<Cell> &getCells() const;

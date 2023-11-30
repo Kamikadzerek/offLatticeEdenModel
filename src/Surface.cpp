@@ -1,9 +1,34 @@
 #include "Surface.h"
 #include <chrono>
+#include <iostream>
 #include <random>
 const double PI = 3.14159265358;
 extern const float WIDTH;
 extern const float HEIGHT;
+std::ostream &operator<<(std::ostream &out, std::vector<Cell>::iterator cell)
+{
+    out << "Cell {id: " << cell->getId() << "; "
+        << "x: " << cell->getX() << "; "
+        << "y: " << cell->getY() << "; "
+        << "status: " << cell->getStatus() << "}";
+    return out;
+}
+std::ostream &operator<<(std::ostream &out, Cell *cell)
+{
+    out << "Cell {id: " << cell->getId() << "; "
+        << "x: " << cell->getX() << "; "
+        << "y: " << cell->getY() << "; "
+        << "status: " << cell->getStatus() << "}";
+    return out;
+}
+std::ostream &operator<<(std::ostream &out, const Cell &cell)
+{
+    out << "Cell {id: " << cell.getId() << "; "
+        << "x: " << cell.getX() << "; "
+        << "y: " << cell.getY() << "; "
+        << "status: " << cell.getStatus() << "}";
+    return out;
+}
 Surface::Surface()
 {
     aliveCellsCounter = 1;
@@ -24,15 +49,15 @@ void Surface::updateB(int numberOfIteration)
     {
         iterationCounter++;
         possiblepaths.clear();
-        for (std::vector<Cell>::iterator cell = cells.begin(); cell != cells.end(); ++cell)
+        for(auto & cell : cells)
         {
-            if (cell->getStatus())
+            if (cell.getStatus())
             {
                 int tempPossiblePathsSize = possiblepaths.size();
                 for (double angle: angles)
                 {
-                    float x = cell->getX() + spawnDistance * cos(angle);
-                    float y = cell->getY() + spawnDistance * sin(angle);
+                    float x = cell.getX() + spawnDistance * float(cos(angle));
+                    float y = cell.getY() + spawnDistance * float(sin(angle));
                     if (!cellIsConflicting(cells, x, y))
                     {
                         path tempPath{x = x, y = y};
@@ -41,14 +66,17 @@ void Surface::updateB(int numberOfIteration)
                 }
                 if (possiblepaths.size() == tempPossiblePathsSize)
                 {
-                    cell->death();
+                    cell.death();
                     aliveCellsCounter--;
                 }
             }
         }
-        path path = possiblepaths[rand()%possiblepaths.size()];
-        cells.push_back(Cell(path.x, path.y));
-        aliveCellsCounter++;
+        if (!possiblepaths.empty())
+        {
+            path path = possiblepaths[rand() % possiblepaths.size()];
+            cells.emplace_back(path.x, path.y);
+            aliveCellsCounter++;
+        }
     }
 }
 void Surface::updateC(int numberOfIteration)
@@ -57,10 +85,10 @@ void Surface::updateC(int numberOfIteration)
     {
         iterationCounter++;
 
-        Cell *cell = &cells[rand()%cells.size()];
+        Cell *cell = &cells[rand() % cells.size()];
         while (!cell->getStatus())
         {
-            cell = &cells[rand()%cells.size()];
+            cell = &cells[rand() % cells.size()];
         }
         if (cell->getStatus())
         {
@@ -95,9 +123,9 @@ void Surface::clear()
 }
 bool Surface::cellIsConflicting(const std::vector<Cell> &cells, float x, float y)
 {
-    for(const Cell &cellTemp: cells)
+    for (auto cellTemp = cells.end()-1; cellTemp != cells.begin(); cellTemp--)
     {
-        if (pow(std::abs(cellTemp.getX() - x), 2) + pow(std::abs(cellTemp.getY() - y), 2) < pow(2 * cellTemp.getRadius(), 2))
+        if (pow(std::abs(cellTemp->getX() - x), 2) + pow(std::abs(cellTemp->getY() - y), 2) < pow(2 * cellTemp->getRadius(), 2))
         {
             return true;
         }
@@ -115,4 +143,51 @@ int Surface::getAliveCellsCounter() const
 const std::vector<Cell> &Surface::getCells() const
 {
     return cells;
+}
+float Surface::radiusOfFittedEdge(const sf::CircleShape edge)
+{
+    float x = edge.getPosition().x;
+    float y = edge.getPosition().y;
+    float bestRadius = 0;
+    float bestSumSquares = MAXFLOAT;
+    for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
+    {
+        float sumSquares = 0;
+        for (const Cell& cell: cells)
+        {
+            if (cell.getStatus())
+            {
+                float d = std::sqrt(std::pow(std::abs(x - cell.getX()), 2) + std::pow(std::abs(y - cell.getY()), 2));
+                sumSquares += std::pow(d - testRadius, 2);
+            }
+        }
+        if (sumSquares < bestSumSquares)
+        {
+            bestRadius = testRadius;
+            bestSumSquares = sumSquares;
+        }
+    }
+    return bestRadius;
+}
+sf::Vector2f Surface::getCenterOfMass()
+{
+    float sumX = 0;
+    float sumY = 0;
+    for (const Cell& cell: cells)
+    {
+        sumX += cell.getX();
+        sumY += cell.getY();
+    }
+    return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
+}
+sf::CircleShape Surface::getEdge()
+{
+    sf::CircleShape edge;
+    edge.setPosition(getCenterOfMass());
+    edge.setFillColor(sf::Color(0, 0, 0, 0));
+    edge.setOutlineThickness(2);
+    edge.setOutlineColor(sf::Color(0, 0, 0, 255));
+    edge.setRadius(radiusOfFittedEdge(edge));
+    edge.move(-edge.getRadius(), -edge.getRadius());
+    return edge;
 }

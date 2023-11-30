@@ -3,23 +3,24 @@
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <chrono>
+#include <cmath>
 #include <iostream>
 #include <random>
 // Ultimately parameters will be provided as a program arguments.
 const bool DRAWONLYALIVE = false;
 // Available Models:
 // -Lattice A
-// -Lattice B
+// -Lattice cppB
 // -Lattice C
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
 const bool LATTICE = false;
 const char VERSION = 'B';
-const int LIMITOFCELLS = 3000;
+const int LIMITOFCELLS = 50000;
 extern const int NUMBEROFANGLES = 16;
-extern const float SIZE = 6;
-extern const float OUTLINETHICNESS = 2;
+extern const float SIZE = 4;
+extern const float OUTLINETHICNESS = 1;
 const int ITERATIONBYONE = 100;
 //----------------------------------------------------------------
 extern const float RADIUS = SIZE / 2;
@@ -33,6 +34,54 @@ extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
 extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
 std::string filename = "";
+sf::Vector2f centerOfMass(const std::vector<Cell> cells)
+{
+    float sumX = 0;
+    float sumY = 0;
+    for (Cell cell: cells)
+    {
+        sumX += cell.getX();
+        sumY += cell.getY();
+    }
+    return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
+}
+float radiusOfFittedEdge(const std::vector<Cell> cells, const sf::CircleShape edge)
+{
+    float x = edge.getPosition().x;
+    float y = edge.getPosition().y;
+    float bestRadius = 0;
+    float bestSumSquares = MAXFLOAT;
+    for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
+    {
+        float sumSquares = 0;
+        for (Cell cell: cells)
+        {
+            if (cell.getStatus())
+            {
+                float d = std::sqrt(std::pow(std::abs(x - cell.getX()), 2) + std::pow(std::abs(y - cell.getY()), 2));
+                sumSquares += std::pow(d - testRadius, 2);
+            }
+        }
+        if (sumSquares < bestSumSquares)
+        {
+            bestRadius = testRadius;
+            bestSumSquares = sumSquares;
+        }
+    }
+    return bestRadius;
+}
+sf::CircleShape edge(const std::vector<Cell> cells)
+{
+    sf::CircleShape edge;
+    edge.setPosition(centerOfMass(cells));
+    edge.setFillColor(sf::Color(0, 0, 0, 0));
+    edge.setOutlineThickness(2);
+    edge.setOutlineColor(sf::Color(0, 0, 0, 255));
+    edge.setRadius(radiusOfFittedEdge(cells, edge));
+    edge.move(-edge.getRadius(), -edge.getRadius());
+    return edge;
+}
+
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 
@@ -41,7 +90,7 @@ int main()
     start = std::chrono::high_resolution_clock::now();
     std::cout << "START\n";
     // Window
-    sf::RenderWindow window(sf::VideoMode(1000, 480), "My first Game", sf::Style::Default);
+    sf::RenderWindow window(sf::VideoMode(1000, 480), "Eden Model", sf::Style::Default);
     window.clear(BACKGROUND_COLOR);
     sf::Event ev;
     sf::Text iterationText;
@@ -55,23 +104,23 @@ int main()
     iterationText.setPosition(0, 0);
     iterationText.setFont(font);
     iterationText.setCharacterSize(12);
-    iterationText.setColor(TEXT_COLOR);
+    iterationText.setFillColor(TEXT_COLOR);
     aliveCellsText.setPosition(0, 13);
     aliveCellsText.setFont(font);
     aliveCellsText.setCharacterSize(12);
-    aliveCellsText.setColor(TEXT_COLOR);
+    aliveCellsText.setFillColor(TEXT_COLOR);
     allCellsText.setPosition(0, 26);
     allCellsText.setFont(font);
     allCellsText.setCharacterSize(12);
-    allCellsText.setColor(TEXT_COLOR);
+    allCellsText.setFillColor(TEXT_COLOR);
     timeText.setPosition(0, 39);
     timeText.setFont(font);
     timeText.setCharacterSize(12);
-    timeText.setColor(TEXT_COLOR);
+    timeText.setFillColor(TEXT_COLOR);
     titleText.setPosition(250, 0);
     titleText.setFont(font);
     titleText.setCharacterSize(25);
-    titleText.setColor(TEXT_COLOR);
+    titleText.setFillColor(TEXT_COLOR);
     sf::RectangleShape rectangle;
     rectangle.setPosition(0, 0);
     rectangle.setSize(sf::Vector2f(200, 50));
@@ -196,7 +245,7 @@ int main()
                 }
                 else if (VERSION == 'C')
                 {
-                    titleText.setString("Eden Model Off-lattice Version B");
+                    titleText.setString("Eden Model Off-lattice Version C");
                     surface.updateC(ITERATIONBYONE);
                 }
                 stop = std::chrono::high_resolution_clock::now();
@@ -231,6 +280,9 @@ int main()
                 {
                     window.draw(cell.getCircleShape());
                 }
+            }
+            if(surface.getAliveCellsCounter()>100){
+                window.draw(surface.getEdge());
             }
             window.display();//Tell app that window is done drawing
             //        sf::Texture texture;
