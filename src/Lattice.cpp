@@ -125,10 +125,10 @@ void Lattice::clear()
 bool Lattice::cellIsConflicting(const std::vector<SqrCell> &cells, float x, float y)
 {
     for (auto cellTemp = cells.end()-1; cellTemp != cells.begin(); --cellTemp)
-//    for (const SqrCell &cellTemp: cells)
     {
-        if ((std::abs(cellTemp->getX() - x) < SIZE) && (std::abs(cellTemp->getY() - y) < SIZE))
-            return true;
+        if(std::abs(cellTemp->getX() - x) < SIZE)
+            if (std::abs(cellTemp->getY() - y) < SIZE)
+                return true;
     }
     return false;
 }

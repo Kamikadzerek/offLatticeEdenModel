@@ -15,12 +15,11 @@
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
-extern const int NUMBEROFANGLES = 16;
-extern const float SIZE = 4;
-extern const float OUTLINETHICNESS = 1;
+extern const int NUMBEROFANGLES = 32;
+extern const float SIZE = 1;
+extern const float OUTLINETHICNESS = 0;
 //----------------------------------------------------------------
 const double PI = 3.14159265358;
-//extern const float DISTANCE = SIZE / 2 * 2.01;
 extern const float WIDTH = 1920 / 2;//1920 / 2;
 extern const float HEIGHT = 1080;   //1080
 extern const sf::Color BACKGROUND_COLOR = sf::Color(249, 219, 189, 255);
