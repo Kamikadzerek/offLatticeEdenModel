@@ -3,14 +3,14 @@ SqrCell::SqrCell(float X, float Y)
 {
     id = counter;
     counter++;
-    extern const float RADIUS;
+    extern const float SIZE;
     extern const float OUTLINETHICNESS;
     extern const sf::Color EDGE_COLOR;
     extern const sf::Color ALIVE_COLOR;
     status = true;
     x = X;
     y = Y;
-    size = 2 * RADIUS;
+    size = SIZE;
     rectangleShape.setPosition(sf::Vector2f(x,y));
     rectangleShape.setFillColor(ALIVE_COLOR);
     rectangleShape.setSize(sf::Vector2f(size-OUTLINETHICNESS/2,size-OUTLINETHICNESS/2));

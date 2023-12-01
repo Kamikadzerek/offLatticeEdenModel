@@ -4,14 +4,14 @@ Cell::Cell(float X, float Y)
 {
     id = counter;
     counter++;
-    extern const float RADIUS;
+    extern const float SIZE;
     extern const float OUTLINETHICNESS;
     extern const sf::Color EDGE_COLOR;
     extern const sf::Color ALIVE_COLOR;
     status = true;
     x = X;
     y = Y;
-    radius = RADIUS;
+    radius = SIZE / 2;
     circleShape.setPosition(sf::Vector2f(x,y));
     circleShape.setFillColor(ALIVE_COLOR);
     circleShape.setRadius(radius-OUTLINETHICNESS/2);

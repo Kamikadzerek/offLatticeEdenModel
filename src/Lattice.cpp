@@ -144,3 +144,55 @@ const std::vector<SqrCell> &Lattice::getCells() const
 {
     return cells;
 }
+float Lattice::radiusOfFittedEdge(const sf::CircleShape edge)
+{
+    float x = edge.getPosition().x;
+    float y = edge.getPosition().y;
+    float bestRadius = 0;
+    float bestSumSquares = MAXFLOAT;
+    for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
+    {
+        float sumSquares = 0;
+        for (const SqrCell& cell: cells)
+        {
+            if (cell.getStatus())
+            {
+                float d = std::sqrt(std::pow(std::abs(x - cell.getX()+SIZE/2), 2) + std::pow(std::abs(y - cell.getY()+SIZE/2), 2)); // dodatek SIZE/2 wynika z tego że współrzędne (x, y) komórki to współrzędne jej lewego górnego rogu
+                sumSquares += std::pow(d - testRadius, 2);
+            }
+        }
+        if (sumSquares > bestSumSquares)
+        {
+            return bestRadius;
+        }
+        if (sumSquares < bestSumSquares)
+        {
+            bestRadius = testRadius;
+            bestSumSquares = sumSquares;
+        }
+
+    }
+    return bestRadius;
+}
+sf::Vector2f Lattice::getCenterOfMass()
+{
+    float sumX = 0;
+    float sumY = 0;
+    for (const SqrCell& cell: cells)
+    {
+        sumX += cell.getX()+SIZE/2;
+        sumY += cell.getY()+SIZE/2;
+    }
+    return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
+}
+sf::CircleShape Lattice::getEdge()
+{
+    sf::CircleShape edge;
+    edge.setPosition(getCenterOfMass());
+    edge.setFillColor(sf::Color(0, 0, 0, 0));
+    edge.setOutlineThickness(2);
+    edge.setOutlineColor(sf::Color(0, 0, 0, 255));
+    edge.setRadius(radiusOfFittedEdge(edge));
+    edge.move(-edge.getRadius(), -edge.getRadius());
+    return edge;
+}

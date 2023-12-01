@@ -1,7 +1,9 @@
 #include "Surface.h"
 #include <chrono>
 #include <iostream>
+#include <mutex>
 #include <random>
+#include <thread>
 const double PI = 3.14159265358;
 extern const float WIDTH;
 extern const float HEIGHT;
@@ -49,7 +51,7 @@ void Surface::updateB(int numberOfIteration)
     {
         iterationCounter++;
         possiblepaths.clear();
-        for(auto & cell : cells)
+        for (auto &cell: cells)
         {
             if (cell.getStatus())
             {
@@ -98,7 +100,8 @@ void Surface::updateC(int numberOfIteration)
             {
                 float x = cell->getX() + spawnDistance * cos(angle);
                 float y = cell->getY() + spawnDistance * sin(angle);
-                isConflicting = cellIsConflicting(cells, x, y);
+                isConflicting = cellIsConflicting(cells, x, y);// Execution time: 36.1s
+                                                               //                                                                               isConflicting = cellIsConflictingThreaded(cells, x, y);
                 if (!isConflicting)
                 {
                     cells.emplace_back(x, y);
@@ -123,14 +126,56 @@ void Surface::clear()
 }
 bool Surface::cellIsConflicting(const std::vector<Cell> &cells, float x, float y)
 {
-    for (auto cellTemp = cells.end()-1; cellTemp != cells.begin(); cellTemp--)
+    float radius = cells.begin()->getRadius();
+    for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); cellTemp--)
     {
-        if (pow(std::abs(cellTemp->getX() - x), 2) + pow(std::abs(cellTemp->getY() - y), 2) < pow(2 * cellTemp->getRadius(), 2))
+        if (std::abs(cellTemp->getX() - x) < 2 * radius)
         {
-            return true;
+            if (pow(std::abs(cellTemp->getX() - x), 2) + pow(std::abs(cellTemp->getY() - y), 2) < pow(2 * radius, 2))
+            {
+                return true;
+            }
         }
     }
     return false;
+}
+bool Surface::cellIsConflictingThreaded(const std::vector<Cell> &cells, float x, float y)
+{
+    std::mutex mtx;
+    bool conflictFound = false;
+
+    std::vector<std::thread> threads;
+    const size_t numThreads = std::thread::hardware_concurrency();// Pobranie liczby dostępnych wątków
+                                                                  //    const size_t numThreads = 8;
+
+    size_t cellsPerThread = cells.size() / numThreads;
+
+    for (size_t i = 0; i < numThreads; i++)
+    {
+        size_t start = i * cellsPerThread;
+        size_t end = (i == numThreads - 1) ? cells.size() : (i + 1) * cellsPerThread;
+                threads.emplace_back([&cells, &conflictFound, &mtx, x, y, start, end]()
+                             {
+                                 for (size_t j = start; j < end; ++j)
+                                 {
+                                     if (conflictFound) return; // Jeśli konflikt został już znaleziony, przerwij pętlę
+                                     if (pow(std::abs(cells[j].getX() - x), 2) + pow(std::abs(cells[j].getY() - y), 2) < pow(2 * cells[j].getRadius(), 2))
+                                     {
+                                         std::lock_guard<std::mutex> lock(mtx);
+                                         conflictFound = true;
+
+                                         return;
+                                     }
+                                 }
+                             });
+    }
+
+    for (auto &thread: threads)
+    {
+        thread.join();
+    }
+
+    return conflictFound;
 }
 int Surface::getIterationCounter() const
 {
@@ -153,13 +198,17 @@ float Surface::radiusOfFittedEdge(const sf::CircleShape edge)
     for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
     {
         float sumSquares = 0;
-        for (const Cell& cell: cells)
+        for (const Cell &cell: cells)
         {
             if (cell.getStatus())
             {
-                float d = std::sqrt(std::pow(std::abs(x - cell.getX()), 2) + std::pow(std::abs(y - cell.getY()), 2));
+                float d = std::sqrt(std::pow(std::abs(x - cell.getX() + SIZE / 2), 2) + std::pow(std::abs(y - cell.getY() + SIZE / 2), 2));// dodatek SIZE/2 wynika z tego że współrzędne (x, y) komórki to współrzędne jej lewego górnego rogu
                 sumSquares += std::pow(d - testRadius, 2);
             }
+        }
+        if (sumSquares > bestSumSquares)
+        {
+            return bestRadius;
         }
         if (sumSquares < bestSumSquares)
         {
@@ -173,7 +222,7 @@ sf::Vector2f Surface::getCenterOfMass()
 {
     float sumX = 0;
     float sumY = 0;
-    for (const Cell& cell: cells)
+    for (const Cell &cell: cells)
     {
         sumX += cell.getX();
         sumY += cell.getY();

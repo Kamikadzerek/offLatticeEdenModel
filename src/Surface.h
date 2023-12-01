@@ -1,6 +1,6 @@
 #include "Cell.h"
 #include <vector>
-extern const float DISTANCE;
+extern const float SIZE;
 class Surface// store all cells
 {
 private:
@@ -8,7 +8,7 @@ private:
     float initialY;
     int iterationCounter;
     int aliveCellsCounter;
-    float spawnDistance = DISTANCE;
+    float spawnDistance = SIZE / 2 * 2.01;
     std::vector<Cell> cells;
     std::vector<double> angles;
     struct path{
@@ -29,4 +29,5 @@ public:
     void updateC(int numberOfIteration);
     void clear();
 
+    bool cellIsConflictingThreaded(const std::vector<Cell> &cells, float x, float y);
 };

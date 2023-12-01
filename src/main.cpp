@@ -4,10 +4,10 @@
 #include <SFML/Window.hpp>
 #include <chrono>
 #include <cmath>
+#include <cstring>
 #include <iostream>
 #include <random>
-// Ultimately parameters will be provided as a program arguments.
-const bool DRAWONLYALIVE = false;
+
 // Available Models:
 // -Lattice A
 // -Lattice cppB
@@ -15,17 +15,12 @@ const bool DRAWONLYALIVE = false;
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
-const bool LATTICE = false;
-const char VERSION = 'B';
-const int LIMITOFCELLS = 50000;
 extern const int NUMBEROFANGLES = 16;
 extern const float SIZE = 4;
 extern const float OUTLINETHICNESS = 1;
-const int ITERATIONBYONE = 100;
 //----------------------------------------------------------------
-extern const float RADIUS = SIZE / 2;
 const double PI = 3.14159265358;
-extern const float DISTANCE = RADIUS * 2.01;
+//extern const float DISTANCE = SIZE / 2 * 2.01;
 extern const float WIDTH = 1920 / 2;//1920 / 2;
 extern const float HEIGHT = 1080;   //1080
 extern const sf::Color BACKGROUND_COLOR = sf::Color(249, 219, 189, 255);
@@ -34,63 +29,78 @@ extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
 extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
 std::string filename = "";
-sf::Vector2f centerOfMass(const std::vector<Cell> cells)
-{
-    float sumX = 0;
-    float sumY = 0;
-    for (Cell cell: cells)
-    {
-        sumX += cell.getX();
-        sumY += cell.getY();
-    }
-    return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
-}
-float radiusOfFittedEdge(const std::vector<Cell> cells, const sf::CircleShape edge)
-{
-    float x = edge.getPosition().x;
-    float y = edge.getPosition().y;
-    float bestRadius = 0;
-    float bestSumSquares = MAXFLOAT;
-    for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
-    {
-        float sumSquares = 0;
-        for (Cell cell: cells)
-        {
-            if (cell.getStatus())
-            {
-                float d = std::sqrt(std::pow(std::abs(x - cell.getX()), 2) + std::pow(std::abs(y - cell.getY()), 2));
-                sumSquares += std::pow(d - testRadius, 2);
-            }
-        }
-        if (sumSquares < bestSumSquares)
-        {
-            bestRadius = testRadius;
-            bestSumSquares = sumSquares;
-        }
-    }
-    return bestRadius;
-}
-sf::CircleShape edge(const std::vector<Cell> cells)
-{
-    sf::CircleShape edge;
-    edge.setPosition(centerOfMass(cells));
-    edge.setFillColor(sf::Color(0, 0, 0, 0));
-    edge.setOutlineThickness(2);
-    edge.setOutlineColor(sf::Color(0, 0, 0, 255));
-    edge.setRadius(radiusOfFittedEdge(cells, edge));
-    edge.move(-edge.getRadius(), -edge.getRadius());
-    return edge;
-}
-
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 
-int main()
+int main(int argc, char *argv[])
 {
+    bool DRAWONLYALIVE;
+    bool LATTICE;
+    bool DRAWEDGE;
+    char VERSION;
+    int LIMITOFCELLS;
+    int ITERATIONBYONE;
+    bool isSetDOA = false;
+    bool isSetDE = false;
+    bool isSetL = false;
+    bool isSetV = false;
+    bool isSetLOC = false;
+    bool isSetIBO = false;
+    for (int i = 1; i < argc; i++)
+    {
+        if (std::strcmp(argv[i], "-de") == 0)
+        {
+            DRAWEDGE = (std::strcmp(argv[i + 1], "false") == 0) ? false : true;
+            isSetDE = true;
+            continue;
+        }
+        if (std::strcmp(argv[i], "-doa") == 0)
+        {
+            DRAWONLYALIVE = (std::strcmp(argv[i + 1], "false") == 0) ? false : true;
+            isSetDOA = true;
+            continue;
+        }
+        if (std::strcmp(argv[i], "-l") == 0)
+        {
+            LATTICE = (std::strcmp(argv[i + 1], "false") == 0) ? false : true;
+            isSetL = true;
+            continue;
+        }
+        if (std::strcmp(argv[i], "-v") == 0)
+        {
+            VERSION = *argv[i + 1];
+            isSetV = true;
+            continue;
+        }
+        if (std::strcmp(argv[i], "-ibo") == 0)
+        {
+            ITERATIONBYONE = int(strtol(argv[i + 1], nullptr, 10));
+            isSetIBO = true;
+            continue;
+        }
+        if (std::strcmp(argv[i], "-loc") == 0)
+        {
+            LIMITOFCELLS = int(strtol(argv[i + 1], nullptr, 10));
+            isSetLOC = true;
+            continue;
+        }
+    }
+    if (!isSetDOA)
+        DRAWONLYALIVE = false;
+    if (!isSetDE)
+        DRAWEDGE = true;
+    if (!isSetL)
+        LATTICE = false;
+    if (!isSetV)
+        VERSION = 'C';
+    if (!isSetLOC)
+        LIMITOFCELLS = 50000;
+    if (!isSetIBO)
+        ITERATIONBYONE = 1000;
     start = std::chrono::high_resolution_clock::now();
     std::cout << "START\n";
     // Window
-    sf::RenderWindow window(sf::VideoMode(1000, 480), "Eden Model", sf::Style::Default);
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default);
     window.clear(BACKGROUND_COLOR);
     sf::Event ev;
     sf::Text iterationText;
@@ -199,6 +209,10 @@ int main()
                     window.draw(cell.getRectangleShape());
                 }
             }
+            if (DRAWEDGE)
+            {
+                window.draw(lattice.getEdge());
+            }
             window.display();//Tell app that window is done drawing
             //        sf::Texture texture;
             //        texture.create(window.getSize().x, window.getSize().y);
@@ -281,7 +295,8 @@ int main()
                     window.draw(cell.getCircleShape());
                 }
             }
-            if(surface.getAliveCellsCounter()>100){
+            if (DRAWEDGE)
+            {
                 window.draw(surface.getEdge());
             }
             window.display();//Tell app that window is done drawing
@@ -297,7 +312,5 @@ int main()
             //        }
         }
     }
-    //Game loop
-    //End of application
     return 0;
 }
