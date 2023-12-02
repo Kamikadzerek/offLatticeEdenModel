@@ -16,8 +16,8 @@
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
 extern const int NUMBEROFANGLES = 32;
-extern const float SIZE = 1;
-extern const float OUTLINETHICNESS = 0;
+extern const float SIZE = 4;
+extern const float OUTLINETHICNESS = 1;
 //----------------------------------------------------------------
 const double PI = 3.14159265358;
 extern const float WIDTH = 1920 / 2;//1920 / 2;
@@ -27,7 +27,6 @@ extern const sf::Color ALIVE_COLOR = sf::Color(94, 255, 0, 100);
 extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
 extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
-std::string filename = "";
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 
@@ -93,13 +92,15 @@ int main(int argc, char *argv[])
     if (!isSetV)
         VERSION = 'C';
     if (!isSetLOC)
-        LIMITOFCELLS = 50000;
+        LIMITOFCELLS = 5500;
     if (!isSetIBO)
         ITERATIONBYONE = 1000;
     start = std::chrono::high_resolution_clock::now();
     std::cout << "START\n";
     // Window
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default);
+    sf::ContextSettings settings;
+    settings.antialiasingLevel = 4;
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default,settings);
     window.clear(BACKGROUND_COLOR);
     sf::Event ev;
     sf::Text iterationText;
@@ -108,7 +109,7 @@ int main(int argc, char *argv[])
     sf::Text timeText;
     sf::Text titleText;
     sf::Font font;
-    font.loadFromFile("../src/JetBrainsMono-Bold.ttf");
+    //    font.loadFromFile("../src/JetBrainsMono-Bold.ttf");
     font.loadFromFile("../../src/JetBrainsMono-Bold.ttf");
     iterationText.setPosition(0, 0);
     iterationText.setFont(font);
@@ -139,7 +140,6 @@ int main(int argc, char *argv[])
         Lattice lattice;
         while (window.isOpen())
         {
-            //Event polling
             while (window.pollEvent(ev))
             {
                 switch (ev.type)
@@ -177,12 +177,8 @@ int main(int argc, char *argv[])
                 }
                 stop = std::chrono::high_resolution_clock::now();
             }
-
-
-            //Update
-            //Render
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-            iterationText.setString("Iteration: " + std::to_string(lattice.getIterationCounter()));
+            iterationText.setString("Iteration: " + std::to_string(lattice.getIterationCounter()) + "\nDUPA");
             aliveCellsText.setString("Alive cells: " + std::to_string(lattice.getAliveCellsCounter()));
             allCellsText.setString("All cells: " + std::to_string(lattice.getCells().size()));
             timeText.setString("Execution time: " + std::to_string(float(duration.count()) / 1000) + "s");
@@ -210,19 +206,9 @@ int main(int argc, char *argv[])
             }
             if (DRAWEDGE)
             {
-                window.draw(lattice.getEdge());
+                window.draw(lattice.getEstimateEdge());
             }
-            window.display();//Tell app that window is done drawing
-            //        sf::Texture texture;
-            //        texture.create(window.getSize().x, window.getSize().y);
-            //        texture.updateA(window);
-            //        filename = std::string(5, '0').append(std::to_string(plane.getIterationCounter()));
-            //        filename = filename.substr(filename.length() - 5);
-            //        filename = filename + ".jpg";
-            //        if (texture.copyToImage().saveToFile("../Pictures/" + filename))
-            //        {
-            //            std::cout << "screenshot saved to " << filename << std::endl;
-            //        }
+            window.display();
         }
     }
     else
@@ -230,7 +216,6 @@ int main(int argc, char *argv[])
         Surface surface;
         while (window.isOpen())
         {
-            //Event polling
             while (window.pollEvent(ev))
             {
                 switch (ev.type)
@@ -263,10 +248,6 @@ int main(int argc, char *argv[])
                 }
                 stop = std::chrono::high_resolution_clock::now();
             }
-
-
-            //Update
-            //Render
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
             iterationText.setString("Iteration: " + std::to_string(surface.getIterationCounter()));
             aliveCellsText.setString("Alive cells: " + std::to_string(surface.getAliveCellsCounter()));
@@ -296,19 +277,9 @@ int main(int argc, char *argv[])
             }
             if (DRAWEDGE)
             {
-                window.draw(surface.getEdge());
+                window.draw(surface.getEstimateEdge());
             }
-            window.display();//Tell app that window is done drawing
-            //        sf::Texture texture;
-            //        texture.create(window.getSize().x, window.getSize().y);
-            //        texture.updateA(window);
-            //        filename = std::string(5, '0').append(std::to_string(plane.getIterationCounter()));
-            //        filename = filename.substr(filename.length() - 5);
-            //        filename = filename + ".jpg";
-            //        if (texture.copyToImage().saveToFile("../Pictures/" + filename))
-            //        {
-            //            std::cout << "screenshot saved to " << filename << std::endl;
-            //        }
+            window.display();
         }
     }
     return 0;

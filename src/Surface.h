@@ -8,10 +8,11 @@ private:
     float initialY;
     int iterationCounter;
     int aliveCellsCounter;
-    float spawnDistance = SIZE / 2 * 2.01;
+    float spawnDistance = SIZE / 2 * 2.001;
     std::vector<Cell> cells;
     std::vector<double> angles;
-    struct path{
+    struct path
+    {
         float x;
         float y;
     };
@@ -20,7 +21,8 @@ private:
 
 public:
     sf::Vector2f getCenterOfMass();
-    sf::CircleShape getEdge();
+    sf::CircleShape getEstimateEdge();
+    std::vector<Cell *> getEdgeCells();
     int getIterationCounter() const;
     int getAliveCellsCounter() const;
     const std::vector<Cell> &getCells() const;
@@ -28,6 +30,4 @@ public:
     void updateB(int numberOfIteration);
     void updateC(int numberOfIteration);
     void clear();
-
-    bool cellIsConflictingThreaded(const std::vector<Cell> &cells, float x, float y);
 };

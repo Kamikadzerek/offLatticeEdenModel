@@ -44,7 +44,7 @@ public:
     void updateB(int numberOfIteration);
     void updateC(int numberOfIteration);
     void clear();
-    sf::CircleShape getEdge();
+    sf::CircleShape getEstimateEdge();
     sf::Vector2f getCenterOfMass();
     float radiusOfFittedEdge(const sf::CircleShape edge);
 };

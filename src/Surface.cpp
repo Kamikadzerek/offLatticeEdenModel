@@ -100,11 +100,13 @@ void Surface::updateC(int numberOfIteration)
             {
                 float x = cell->getX() + spawnDistance * cos(angle);
                 float y = cell->getY() + spawnDistance * sin(angle);
-                isConflicting = cellIsConflicting(cells, x, y);// Execution time: 36.1s
-                                                               //                                                                               isConflicting = cellIsConflictingThreaded(cells, x, y);
+                isConflicting = cellIsConflicting(cells, x, y);
                 if (!isConflicting)
                 {
                     cells.emplace_back(x, y);
+                    cell->addAdjacentCell(&cells.back());
+                    std::cout<<"DUPA\n";
+                    cells.end()->addAdjacentCell(cell);
                     aliveCellsCounter++;
                     break;
                 }
@@ -138,44 +140,6 @@ bool Surface::cellIsConflicting(const std::vector<Cell> &cells, float x, float y
         }
     }
     return false;
-}
-bool Surface::cellIsConflictingThreaded(const std::vector<Cell> &cells, float x, float y)
-{
-    std::mutex mtx;
-    bool conflictFound = false;
-
-    std::vector<std::thread> threads;
-    const size_t numThreads = std::thread::hardware_concurrency();// Pobranie liczby dostępnych wątków
-                                                                  //    const size_t numThreads = 8;
-
-    size_t cellsPerThread = cells.size() / numThreads;
-
-    for (size_t i = 0; i < numThreads; i++)
-    {
-        size_t start = i * cellsPerThread;
-        size_t end = (i == numThreads - 1) ? cells.size() : (i + 1) * cellsPerThread;
-                threads.emplace_back([&cells, &conflictFound, &mtx, x, y, start, end]()
-                             {
-                                 for (size_t j = start; j < end; ++j)
-                                 {
-                                     if (conflictFound) return; // Jeśli konflikt został już znaleziony, przerwij pętlę
-                                     if (pow(std::abs(cells[j].getX() - x), 2) + pow(std::abs(cells[j].getY() - y), 2) < pow(2 * cells[j].getRadius(), 2))
-                                     {
-                                         std::lock_guard<std::mutex> lock(mtx);
-                                         conflictFound = true;
-
-                                         return;
-                                     }
-                                 }
-                             });
-    }
-
-    for (auto &thread: threads)
-    {
-        thread.join();
-    }
-
-    return conflictFound;
 }
 int Surface::getIterationCounter() const
 {
@@ -229,7 +193,7 @@ sf::Vector2f Surface::getCenterOfMass()
     }
     return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
 }
-sf::CircleShape Surface::getEdge()
+sf::CircleShape Surface::getEstimateEdge()
 {
     sf::CircleShape edge;
     edge.setPosition(getCenterOfMass());
@@ -240,3 +204,38 @@ sf::CircleShape Surface::getEdge()
     edge.move(-edge.getRadius(), -edge.getRadius());
     return edge;
 }
+std::vector<Cell *> Surface::getEdgeCells()
+{
+    float radius = cells.begin()->getRadius();
+    std::vector<Cell *> edgeCells;
+    Cell *farRightCell = nullptr;
+    for (Cell &cell: cells)
+    {
+        if (cell.getStatus())
+        {
+            if (farRightCell == nullptr)
+                farRightCell = &cell;
+            if (cell.getX() > farRightCell->getX())
+                farRightCell = &cell;
+        }
+    }
+    edgeCells.push_back(farRightCell);
+    Cell *cellptr;
+    do {
+        cellptr = edgeCells.back();
+        for(Cell::adjacentCell adjacentCell: cellptr->getAdjacentCells()){
+            std::cout<<adjacentCell.cell<<"\n";
+        }
+    } while (cellptr != farRightCell);
+
+
+    return edgeCells;
+}
+// Sposób znajdowania krawędziowych komórek:
+// W wektorze adjacentCell przechowuj pary (komórka;kąt),(komórka;kąt-pi) odpowiednio dla komórki "rodzica" i komórki "potomka". Gdzię kąt to wylosowana zmienna angle
+// Następnie za pierwszą komórkę krawędziową przyjmujesz komórkę wysuniętą najbardziej na prawo w klastrze.
+// Aby znaleźć następną stosuj algorytm:
+// 1. Znajdź kąt prostej łączącej środek komórki poprzedniej ze środkiem ciężkości klastra.
+// 2. Posegreguj wektor komórek przylegających komórki poprzedniej po kącię. (optymalnie jeśli za pierwszy uznana byłaby para w której kąt jako pierwszy następuję po kącie znalezionym w poprzednim kroku)
+// 3. W sytuacji optymalnej komórka z pierwszej pary będzie szukaną komórką.
+// 4. Dodaj ją do komórek krawędziowych i usuń z jej wektora adjacenCell poprzednią komórkę.
