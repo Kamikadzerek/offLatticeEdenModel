@@ -1,8 +1,10 @@
 #include "Cell.h"
-#include <memory>
+#include <iostream>
 
 Cell::Cell(float X, float Y)
 {
+    adjacentCells = {};
+    adjacentCells.resize(30);
     id = counter;
     counter++;
     extern const float SIZE;
@@ -64,21 +66,20 @@ int Cell::getId() const
 {
     return id;
 }
-const std::vector<Cell::adjacentCell> &Cell::getAdjacentCells() const
-{
-    return adjacentCells;
-}
+//const std::vector<Cell::adjacentCell> &Cell::getAdjacentCells() const
+//{
+//    return adjacentCells;
+//}
 void Cell::addAdjacentCell(Cell *cell)
 {
     float angle = 0;
-
-    adjacentCells.push_back(adjacentCell(cell, angle));
+    adjacentCells.emplace_back(cell, angle);
 }
-void Cell::removeAdjacentCell(Cell *cell)
-{
-    adjacentCells.erase(
-            std::remove_if(adjacentCells.begin(), adjacentCells.end(),
-                           [cell](Cell::adjacentCell c1)
-                           { return c1.cell->getId() == cell->getId(); }),
-            adjacentCells.end());
-}
+//void Cell::removeAdjacentCell(Cell *cell)
+//{
+//    adjacentCells.erase(
+//            std::remove_if(adjacentCells.begin(), adjacentCells.end(),
+//                           [cell](Cell::adjacentCell c1)
+//                           { return c1.cell->getId() == cell->getId(); }),
+//            adjacentCells.end());
+//}

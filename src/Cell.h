@@ -7,7 +7,6 @@ public:
         Cell *cell;
         float angle;
     };
-    std::vector<adjacentCell> adjacentCells={};
     Cell(float x, float y);
     void alive();
     void death();
@@ -23,6 +22,8 @@ public:
     const std::vector<adjacentCell> &getAdjacentCells() const;
 
 private:
+    std::vector<adjacentCell> test;
+    std::vector<adjacentCell> adjacentCells;
     static inline int counter = 0;
     int id;
     bool status;//Dead-False, Alive-True

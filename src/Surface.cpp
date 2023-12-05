@@ -104,9 +104,8 @@ void Surface::updateC(int numberOfIteration)
                 if (!isConflicting)
                 {
                     cells.emplace_back(x, y);
-                    cell->addAdjacentCell(&cells.back());
-                    std::cout<<"DUPA\n";
-                    cells.end()->addAdjacentCell(cell);
+                    cell->addAdjacentCell(&cells[cells.size()]);
+//                    cells.back().addAdjacentCell(cell);
                     aliveCellsCounter++;
                     break;
                 }
@@ -199,38 +198,45 @@ sf::CircleShape Surface::getEstimateEdge()
     edge.setPosition(getCenterOfMass());
     edge.setFillColor(sf::Color(0, 0, 0, 0));
     edge.setOutlineThickness(2);
-    edge.setOutlineColor(sf::Color(0, 0, 0, 255));
+    edge.setOutlineColor(sf::Color(0, 0, 0, 100));
     edge.setRadius(radiusOfFittedEdge(edge));
     edge.move(-edge.getRadius(), -edge.getRadius());
     return edge;
 }
-std::vector<Cell *> Surface::getEdgeCells()
+Surface::~Surface()
 {
-    float radius = cells.begin()->getRadius();
-    std::vector<Cell *> edgeCells;
-    Cell *farRightCell = nullptr;
-    for (Cell &cell: cells)
-    {
-        if (cell.getStatus())
-        {
-            if (farRightCell == nullptr)
-                farRightCell = &cell;
-            if (cell.getX() > farRightCell->getX())
-                farRightCell = &cell;
-        }
-    }
-    edgeCells.push_back(farRightCell);
-    Cell *cellptr;
-    do {
-        cellptr = edgeCells.back();
-        for(Cell::adjacentCell adjacentCell: cellptr->getAdjacentCells()){
-            std::cout<<adjacentCell.cell<<"\n";
-        }
-    } while (cellptr != farRightCell);
+    std::cout<<"Surface destroy!\n";
+    cells.clear();
+    angles.clear();
 
-
-    return edgeCells;
 }
+//std::vector<Cell *> Surface::getEdgeCells()
+//{
+//    float radius = cells.begin()->getRadius();
+//    std::vector<Cell *> edgeCells;
+//    Cell *farRightCell = nullptr;
+//    for (Cell &cell: cells)
+//    {
+//        if (cell.getStatus())
+//        {
+//            if (farRightCell == nullptr)
+//                farRightCell = &cell;
+//            if (cell.getX() > farRightCell->getX())
+//                farRightCell = &cell;
+//        }
+//    }
+//    edgeCells.push_back(farRightCell);
+//    Cell *cellptr;
+//    do {
+//        cellptr = edgeCells.back();
+//        for(Cell::adjacentCell adjacentCell: cellptr->getAdjacentCells()){
+//            std::cout<<adjacentCell.cell<<"\n";
+//        }
+//    } while (cellptr != farRightCell);
+//
+//
+//    return edgeCells;
+//}
 // Sposób znajdowania krawędziowych komórek:
 // W wektorze adjacentCell przechowuj pary (komórka;kąt),(komórka;kąt-pi) odpowiednio dla komórki "rodzica" i komórki "potomka". Gdzię kąt to wylosowana zmienna angle
 // Następnie za pierwszą komórkę krawędziową przyjmujesz komórkę wysuniętą najbardziej na prawo w klastrze.
