@@ -1,22 +1,22 @@
 #include "SqrCell.h"
 #include <valarray>
 #include <vector>
-extern const float SIZE;
+extern const double SIZE;
 class Lattice
 {
 private:
-    float initialX;
-    float initialY;
+    double initialX;
+    double initialY;
     int iterationCounter;
     int aliveCellsCounter;
     std::vector<SqrCell> cells;
     struct displacement
     {
-        float dx,dy;
+        double dx,dy;
     };
     struct coords
     {
-        float x,y;
+        double x,y;
         bool operator <(const coords& coord) const
         {
             return (x < coord.x) || ((!(coord.x < x)) && (y < coord.y));
@@ -33,7 +33,7 @@ private:
             {-SIZE, -SIZE},
     };
     static bool
-    cellIsConflicting(const std::vector<SqrCell> &cells, float x, float y);
+    cellIsConflicting(const std::vector<SqrCell> &cells, double x, double y);
 
 public:
     int getIterationCounter() const;
@@ -46,5 +46,5 @@ public:
     void clear();
     sf::CircleShape getEstimateEdge();
     sf::Vector2f getCenterOfMass();
-    float radiusOfFittedEdge(const sf::CircleShape edge);
+    double radiusOfFittedEdge(const sf::CircleShape edge);
 };

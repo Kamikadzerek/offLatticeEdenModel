@@ -6,8 +6,8 @@
 #include <set>
 #include <thread>
 const double PI = 3.14159265358;
-extern const float WIDTH;
-extern const float HEIGHT;
+extern const double WIDTH;
+extern const double HEIGHT;
 template<typename S>
 auto select_random(const S &s, size_t n)
 {
@@ -41,8 +41,8 @@ void Lattice::updateA(int numberOfIteration)
                 int tempPossibleCoordsSize = possibleCoords.size();
                 for (const displacement &disp: displacements)
                 {
-                    float x = cell.getX() + disp.dx;
-                    float y = cell.getY() + disp.dy;
+                    double x = cell.getX() + disp.dx;
+                    double y = cell.getY() + disp.dy;
                     if (!cellIsConflicting(cells, x, y))
                         possibleCoords.emplace_back(x, y);
                 }
@@ -78,8 +78,8 @@ void Lattice::updateB(int numberOfIteration)
                 int tempPossibleCoordsSize = possibleCoords.size();
                 for (displacement disp: displacements)
                 {
-                    float x = cell.getX() + disp.dx;
-                    float y = cell.getY() + disp.dy;
+                    double x = cell.getX() + disp.dx;
+                    double y = cell.getY() + disp.dy;
                     if (!cellIsConflicting(cells, x, y))
                         possibleCoords.emplace_back(x, y);
                 }
@@ -110,8 +110,8 @@ void Lattice::updateC(int numberOfIteration)
         }
         for (displacement disp: displacements)
         {
-            float x = randomCell->getX() + disp.dx;
-            float y = randomCell->getY() + disp.dy;
+            double x = randomCell->getX() + disp.dx;
+            double y = randomCell->getY() + disp.dy;
             if (!cellIsConflicting(cells, x, y))
             {
                 cells.emplace_back(x, y);
@@ -134,7 +134,7 @@ void Lattice::clear()
     cells.clear();
     cells.emplace_back(initialX, initialY);
 }
-bool Lattice::cellIsConflicting(const std::vector<SqrCell> &cells, float x, float y)
+bool Lattice::cellIsConflicting(const std::vector<SqrCell> &cells, double x, double y)
 {
     for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
     {
@@ -156,20 +156,20 @@ const std::vector<SqrCell> &Lattice::getCells() const
 {
     return cells;
 }
-float Lattice::radiusOfFittedEdge(const sf::CircleShape edge)
+double Lattice::radiusOfFittedEdge(const sf::CircleShape edge)
 {
-    float x = edge.getPosition().x;
-    float y = edge.getPosition().y;
-    float bestRadius = 0;
-    float bestSumSquares = MAXFLOAT;
-    for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
+    double x = edge.getPosition().x;
+    double y = edge.getPosition().y;
+    double bestRadius = 0;
+    double bestSumSquares = MAXFLOAT;
+    for (double testRadius = 1.; testRadius < WIDTH; testRadius += 1)
     {
-        float sumSquares = 0;
+        double sumSquares = 0;
         for (const SqrCell &cell: cells)
         {
             if (cell.getStatus())
             {
-                float d = std::sqrt(std::pow(std::abs(x - cell.getX() + SIZE / 2), 2) + std::pow(std::abs(y - cell.getY() + SIZE / 2), 2));// dodatek SIZE/2 wynika z tego że współrzędne (x, y) komórki to współrzędne jej lewego górnego rogu
+                double d = std::sqrt(std::pow(std::abs(x - cell.getX() + SIZE / 2), 2) + std::pow(std::abs(y - cell.getY() + SIZE / 2), 2));// dodatek SIZE/2 wynika z tego że współrzędne (x, y) komórki to współrzędne jej lewego górnego rogu
                 sumSquares += std::pow(d - testRadius, 2);
             }
         }
@@ -187,8 +187,8 @@ float Lattice::radiusOfFittedEdge(const sf::CircleShape edge)
 }
 sf::Vector2f Lattice::getCenterOfMass()
 {
-    float sumX = 0;
-    float sumY = 0;
+    double sumX = 0;
+    double sumY = 0;
     for (const SqrCell &cell: cells)
     {
         sumX += cell.getX() + SIZE / 2;

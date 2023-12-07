@@ -16,12 +16,11 @@
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
 extern const int NUMBEROFANGLES = 32;
-extern const float SIZE = 4;
-extern const float OUTLINETHICNESS = 1;
+extern const double SIZE = 4;
+extern const double OUTLINETHICNESS = 1.5;
 //----------------------------------------------------------------
-const double PI = 3.14159265358;
-extern const float WIDTH = 1920 / 2;//1920 / 2;
-extern const float HEIGHT = 1080;   //1080
+extern const double WIDTH = 1920 / 2;//1920 / 2;
+extern const double HEIGHT = 1080;   //1080
 extern const sf::Color BACKGROUND_COLOR = sf::Color(249, 219, 189, 255);
 extern const sf::Color ALIVE_COLOR = sf::Color(94, 255, 0, 100);
 extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
@@ -32,6 +31,7 @@ auto stop = std::chrono::high_resolution_clock::now();
 
 int main(int argc, char *argv[])
 {
+
     bool DRAWONLYALIVE;
     bool LATTICE;
     bool DRAWEDGE;
@@ -92,15 +92,15 @@ int main(int argc, char *argv[])
     if (!isSetV)
         VERSION = 'C';
     if (!isSetLOC)
-        LIMITOFCELLS = 5500;
+        LIMITOFCELLS = 10000;
     if (!isSetIBO)
-        ITERATIONBYONE = 1000;
+        ITERATIONBYONE = 2000;
     start = std::chrono::high_resolution_clock::now();
     std::cout << "START\n";
     // Window
     sf::ContextSettings settings;
     settings.antialiasingLevel = 4;
-    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default,settings);
+    sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default, settings);
     window.clear(BACKGROUND_COLOR);
     sf::Event ev;
     sf::Text iterationText;
@@ -181,7 +181,7 @@ int main(int argc, char *argv[])
             iterationText.setString("Iteration: " + std::to_string(lattice.getIterationCounter()) + "\nDUPA");
             aliveCellsText.setString("Alive cells: " + std::to_string(lattice.getAliveCellsCounter()));
             allCellsText.setString("All cells: " + std::to_string(lattice.getCells().size()));
-            timeText.setString("Execution time: " + std::to_string(float(duration.count()) / 1000) + "s");
+            timeText.setString("Execution time: " + std::to_string(double(duration.count()) / 1000) + "s");
             window.clear(BACKGROUND_COLOR);
             window.draw(rectangle);
             window.draw(iterationText);
@@ -213,6 +213,7 @@ int main(int argc, char *argv[])
     }
     else
     {
+        sf::CircleShape edge;
         Surface surface;
         while (window.isOpen())
         {
@@ -220,6 +221,9 @@ int main(int argc, char *argv[])
             {
                 switch (ev.type)
                 {
+                    case sf::Event::MouseButtonPressed:
+                        surface.printCellInfoByClick(ev.mouseButton.x, ev.mouseButton.y);
+                        break;
                     case sf::Event::Closed:
                         window.close();
                         break;
@@ -246,13 +250,25 @@ int main(int argc, char *argv[])
                     titleText.setString("Eden Model Off-lattice Version C");
                     surface.updateC(ITERATIONBYONE);
                 }
+                auto edgeCells = surface.getEdgeCells();
+                for (Cell *cell: edgeCells)
+                {
+                    cell->setFillColor(sf::Color(100, 100, 100, 255));
+                    window.draw(cell->getCircleShape());
+                }
+                if (DRAWEDGE)
+                {
+                    edge = surface.getEstimateEdge(edgeCells);
+                }
                 stop = std::chrono::high_resolution_clock::now();
+            }else{
+                std::cout<<"KONIEC\n";
             }
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
             iterationText.setString("Iteration: " + std::to_string(surface.getIterationCounter()));
             aliveCellsText.setString("Alive cells: " + std::to_string(surface.getAliveCellsCounter()));
             allCellsText.setString("All cells: " + std::to_string(surface.getCells().size()));
-            timeText.setString("Execution time: " + std::to_string(float(duration.count()) / 1000) + "s");
+            timeText.setString("Execution time: " + std::to_string(double(duration.count()) / 1000) + "s");
             window.clear(BACKGROUND_COLOR);
             window.draw(rectangle);
             window.draw(iterationText);
@@ -277,7 +293,7 @@ int main(int argc, char *argv[])
             }
             if (DRAWEDGE)
             {
-                window.draw(surface.getEstimateEdge());
+                window.draw(edge);
             }
             window.display();
         }

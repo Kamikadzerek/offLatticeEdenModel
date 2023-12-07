@@ -17,7 +17,8 @@ add_executable(OffLaticeEdenModel src/main.cpp
         src/Lattice.cpp
         src/Lattice.h
         src/SqrCell.cpp
-        src/SqrCell.h)
+        src/SqrCell.h
+        src/functions.cpp)
 target_link_libraries(OffLaticeEdenModel PRIVATE sfml-graphics)
 target_compile_features(OffLaticeEdenModel PRIVATE cxx_std_23)
 

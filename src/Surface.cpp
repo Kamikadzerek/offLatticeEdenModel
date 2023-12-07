@@ -1,12 +1,46 @@
 #include "Surface.h"
+#include "functions.cpp"
 #include <chrono>
 #include <iostream>
 #include <mutex>
 #include <random>
-#include <thread>
-const double PI = 3.14159265358;
-extern const float WIDTH;
-extern const float HEIGHT;
+extern const double WIDTH;
+extern const double HEIGHT;
+double distanceBtwTwoPoints(double x1, double y1, double x2, double y2)
+{
+    return sqrt(pow(std::abs(x1 - x2), 2) + pow(std::abs(y1 - y2), 2));
+}
+double angleBtwTwoPoints(double x1, double y1, double x2, double y2)
+{
+    double angle = std::abs(atan((y2 - y1) / (x2 - x1)));
+    if (x2 >= x1 && y2 >= y1)
+    {
+    }
+    else if (x2 <= x1 && y2 >= y1)
+    {
+        angle += (M_PI / 2);
+    }
+    else if (x2 <= x1 && y2 <= y1)
+    {
+        angle += M_PI;
+    }
+    else if (x2 >= x1 && y2 <= y1)
+    {
+        angle += (3 * M_PI / 2);
+    }
+    if (y2 == y1)
+    {
+        if (x1 > x2)
+        {
+            angle = M_PI;
+        }
+        else
+        {
+            angle = 0;
+        }
+    }
+    return angle;
+}
 std::ostream &operator<<(std::ostream &out, std::vector<Cell>::iterator cell)
 {
     out << "Cell {id: " << cell->getId() << "; "
@@ -17,15 +51,30 @@ std::ostream &operator<<(std::ostream &out, std::vector<Cell>::iterator cell)
 }
 std::ostream &operator<<(std::ostream &out, Cell *cell)
 {
-    out << "Cell {id: " << cell->getId() << "; "
+    out << "Cell* {id: " << cell->getId() << "; "
         << "x: " << cell->getX() << "; "
         << "y: " << cell->getY() << "; "
         << "status: " << cell->getStatus() << "}";
     return out;
 }
+std::ostream &operator<<(std::ostream &out, const std::vector<Surface::adjacentCell> &vecAC)
+{
+    out << "AdjacentCells:{";
+    for (const Surface::adjacentCell cell: vecAC)
+    {
+        out << "\n"
+            << cell.cell << ", angle: " << cell.angle * (180 / M_PI);
+        if (cell.cell->getId() != vecAC.back().cell->getId())
+        {
+            out << ",";
+        }
+    }
+    out << "\n}";
+    return out;
+}
 std::ostream &operator<<(std::ostream &out, const Cell &cell)
 {
-    out << "Cell {id: " << cell.getId() << "; "
+    out << "Cell& {id: " << cell.getId() << "; "
         << "x: " << cell.getX() << "; "
         << "y: " << cell.getY() << "; "
         << "status: " << cell.getStatus() << "}";
@@ -35,7 +84,7 @@ Surface::Surface()
 {
     aliveCellsCounter = 1;
     extern const int NUMBEROFANGLES;
-    for (double angle = 0; angle < 2 * PI; angle += (2 * PI) / NUMBEROFANGLES)
+    for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / NUMBEROFANGLES)
     {
         angles.push_back(angle);
     }
@@ -46,6 +95,7 @@ Surface::Surface()
 }
 void Surface::updateB(int numberOfIteration)
 {
+    resetColors();
     std::vector<path> possiblepaths;
     for (int i = 0; i < numberOfIteration; i++)
     {
@@ -55,11 +105,11 @@ void Surface::updateB(int numberOfIteration)
         {
             if (cell.getStatus())
             {
-                int tempPossiblePathsSize = possiblepaths.size();
+                unsigned long tempPossiblePathsSize = possiblepaths.size();
                 for (double angle: angles)
                 {
-                    float x = cell.getX() + spawnDistance * float(cos(angle));
-                    float y = cell.getY() + spawnDistance * float(sin(angle));
+                    double x = cell.getX() + spawnDistance * double(cos(angle));
+                    double y = cell.getY() + spawnDistance * double(sin(angle));
                     if (!cellIsConflicting(cells, x, y))
                     {
                         path tempPath{x = x, y = y};
@@ -83,14 +133,16 @@ void Surface::updateB(int numberOfIteration)
 }
 void Surface::updateC(int numberOfIteration)
 {
+    resetColors();
     for (int i = 0; i < numberOfIteration; i++)
     {
         iterationCounter++;
-
-        Cell *cell = &cells[rand() % cells.size()];
+        unsigned long index = rand() % cells.size();
+        Cell *cell = &cells[index];
         while (!cell->getStatus())
         {
-            cell = &cells[rand() % cells.size()];
+            index = rand() % cells.size();
+            cell = &cells[index];
         }
         if (cell->getStatus())
         {
@@ -98,14 +150,12 @@ void Surface::updateC(int numberOfIteration)
             std::shuffle(angles.begin(), angles.end(), std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
             for (const double &angle: angles)
             {
-                float x = cell->getX() + spawnDistance * cos(angle);
-                float y = cell->getY() + spawnDistance * sin(angle);
+                double x = cell->getX() + spawnDistance * cos(angle);
+                double y = cell->getY() + spawnDistance * sin(angle);
                 isConflicting = cellIsConflicting(cells, x, y);
                 if (!isConflicting)
                 {
                     cells.emplace_back(x, y);
-                    cell->addAdjacentCell(&cells[cells.size()]);
-//                    cells.back().addAdjacentCell(cell);
                     aliveCellsCounter++;
                     break;
                 }
@@ -125,14 +175,14 @@ void Surface::clear()
     cells.clear();
     cells.emplace_back(initialX, initialY);
 }
-bool Surface::cellIsConflicting(const std::vector<Cell> &cells, float x, float y)
+bool Surface::cellIsConflicting(const std::vector<Cell> &cells, double x, double y)
 {
-    float radius = cells.begin()->getRadius();
-    for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); cellTemp--)
+    double radius = cells.begin()->getRadius();
+    for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--)
     {
         if (std::abs(cellTemp->getX() - x) < 2 * radius)
         {
-            if (pow(std::abs(cellTemp->getX() - x), 2) + pow(std::abs(cellTemp->getY() - y), 2) < pow(2 * radius, 2))
+            if (distanceBtwTwoPoints(cellTemp->getX(), cellTemp->getY(), x, y) < 2 * radius)
             {
                 return true;
             }
@@ -152,20 +202,20 @@ const std::vector<Cell> &Surface::getCells() const
 {
     return cells;
 }
-float Surface::radiusOfFittedEdge(const sf::CircleShape edge)
+double Surface::radiusOfFittedEdge(const sf::CircleShape& edge, const std::vector<Cell*>& edgeCells)
 {
-    float x = edge.getPosition().x;
-    float y = edge.getPosition().y;
-    float bestRadius = 0;
-    float bestSumSquares = MAXFLOAT;
-    for (float testRadius = 1.; testRadius < WIDTH; testRadius += 1)
+    double x = edge.getPosition().x;
+    double y = edge.getPosition().y;
+    double bestRadius = 0;
+    double bestSumSquares = MAXFLOAT;
+    for (double testRadius = 1.; testRadius < WIDTH; testRadius += 1)
     {
-        float sumSquares = 0;
-        for (const Cell &cell: cells)
+        double sumSquares = 0;
+        for (const Cell *cell: edgeCells)
         {
-            if (cell.getStatus())
+            if (cell->getStatus())
             {
-                float d = std::sqrt(std::pow(std::abs(x - cell.getX() + SIZE / 2), 2) + std::pow(std::abs(y - cell.getY() + SIZE / 2), 2));// dodatek SIZE/2 wynika z tego że współrzędne (x, y) komórki to współrzędne jej lewego górnego rogu
+                double d = std::sqrt(std::pow(std::abs(x - cell->getX() + SIZE / 2), 2) + std::pow(std::abs(y - cell->getY() + SIZE / 2), 2));// dodatek SIZE/2 wynika z tego że współrzędne (x, y) komórki to współrzędne jej lewego górnego rogu
                 sumSquares += std::pow(d - testRadius, 2);
             }
         }
@@ -183,8 +233,8 @@ float Surface::radiusOfFittedEdge(const sf::CircleShape edge)
 }
 sf::Vector2f Surface::getCenterOfMass()
 {
-    float sumX = 0;
-    float sumY = 0;
+    double sumX = 0;
+    double sumY = 0;
     for (const Cell &cell: cells)
     {
         sumX += cell.getX();
@@ -192,56 +242,115 @@ sf::Vector2f Surface::getCenterOfMass()
     }
     return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
 }
-sf::CircleShape Surface::getEstimateEdge()
+sf::CircleShape Surface::getEstimateEdge(const std::vector<Cell*>& edgeCells)
 {
     sf::CircleShape edge;
     edge.setPosition(getCenterOfMass());
     edge.setFillColor(sf::Color(0, 0, 0, 0));
     edge.setOutlineThickness(2);
     edge.setOutlineColor(sf::Color(0, 0, 0, 100));
-    edge.setRadius(radiusOfFittedEdge(edge));
+    edge.setRadius(radiusOfFittedEdge(edge, edgeCells));
     edge.move(-edge.getRadius(), -edge.getRadius());
     return edge;
 }
-Surface::~Surface()
+std::vector<Cell *> Surface::getEdgeCells()
 {
-    std::cout<<"Surface destroy!\n";
-    cells.clear();
-    angles.clear();
+    std::vector<Cell *> edgeCells;
+    Cell *farRightCell = nullptr;
+    for (Cell &cell: cells)
+    {
+        if (cell.getStatus())
+        {
+            if (farRightCell == nullptr)
+                farRightCell = &cell;
+            if (cell.getX() > farRightCell->getX())
+                farRightCell = &cell;
+        }
+    }
+    edgeCells.push_back(farRightCell);
 
+    Cell *currentCell = edgeCells.back();
+    std::vector<Surface::adjacentCell> adjacentCells = {};
+    do {
+        adjacentCells.clear();
+        adjacentCells = getAdjacentCells(currentCell);
+        std::sort(adjacentCells.begin(), adjacentCells.end(), [](Surface::adjacentCell c1, Surface::adjacentCell c2)
+                  { return c1.angle < c2.angle; });
+        for (auto adjacentCell = adjacentCells.begin(); adjacentCell < adjacentCells.end(); adjacentCell++)
+        {
+            if (adjacentCells.size() == 1)
+            {
+                edgeCells.push_back(adjacentCells.back().cell);
+                currentCell = edgeCells.back();
+                break;
+            }
+            if (edgeCells.size() < 2)
+            {
+                edgeCells.push_back(adjacentCells.begin()->cell);
+                currentCell = edgeCells.back();
+                break;
+            }
+            if (adjacentCell->cell->getId() == (edgeCells.end()[-2])->getId())
+            {
+                if (adjacentCell->cell->getId() == adjacentCells.back().cell->getId())
+                {
+                    edgeCells.push_back(adjacentCells.begin()->cell);
+                }
+                else
+                {
+                    edgeCells.push_back((adjacentCell + 1)->cell);
+                }
+                currentCell = edgeCells.back();
+                break;
+            }
+        }
+
+    } while (currentCell != farRightCell);
+    return edgeCells;
 }
-//std::vector<Cell *> Surface::getEdgeCells()
-//{
-//    float radius = cells.begin()->getRadius();
-//    std::vector<Cell *> edgeCells;
-//    Cell *farRightCell = nullptr;
-//    for (Cell &cell: cells)
-//    {
-//        if (cell.getStatus())
-//        {
-//            if (farRightCell == nullptr)
-//                farRightCell = &cell;
-//            if (cell.getX() > farRightCell->getX())
-//                farRightCell = &cell;
-//        }
-//    }
-//    edgeCells.push_back(farRightCell);
-//    Cell *cellptr;
-//    do {
-//        cellptr = edgeCells.back();
-//        for(Cell::adjacentCell adjacentCell: cellptr->getAdjacentCells()){
-//            std::cout<<adjacentCell.cell<<"\n";
-//        }
-//    } while (cellptr != farRightCell);
-//
-//
-//    return edgeCells;
-//}
-// Sposób znajdowania krawędziowych komórek:
-// W wektorze adjacentCell przechowuj pary (komórka;kąt),(komórka;kąt-pi) odpowiednio dla komórki "rodzica" i komórki "potomka". Gdzię kąt to wylosowana zmienna angle
-// Następnie za pierwszą komórkę krawędziową przyjmujesz komórkę wysuniętą najbardziej na prawo w klastrze.
-// Aby znaleźć następną stosuj algorytm:
-// 1. Znajdź kąt prostej łączącej środek komórki poprzedniej ze środkiem ciężkości klastra.
-// 2. Posegreguj wektor komórek przylegających komórki poprzedniej po kącię. (optymalnie jeśli za pierwszy uznana byłaby para w której kąt jako pierwszy następuję po kącie znalezionym w poprzednim kroku)
-// 3. W sytuacji optymalnej komórka z pierwszej pary będzie szukaną komórką.
-// 4. Dodaj ją do komórek krawędziowych i usuń z jej wektora adjacenCell poprzednią komórkę.
+void Surface::printCellInfoByClick(double x, double y)
+{
+    double cellCenterX;
+    double cellCenterY;
+    for (const Cell& cell: cells)
+    {
+        cellCenterX = cell.getX() + cell.getRadius();
+        cellCenterY = cell.getY() + cell.getRadius();
+        if (distanceBtwTwoPoints(cellCenterX, cellCenterY, x, y) < cell.getRadius())
+        {
+
+            std::vector<Surface::adjacentCell> adjacentCells = getAdjacentCells(&cell);
+            std::cout << cell << "\n";
+            std::cout << adjacentCells;
+            std::cout << "\n--------------------------------------------------------\n";
+        }
+    }
+}
+std::vector<Surface::adjacentCell> Surface::getAdjacentCells(const Cell *cell)
+{
+    std::vector<Surface::adjacentCell> adjacentCells = {};
+    //    for (Cell cellTemp: cells)
+    for (auto cellTemp = cells.begin(); cellTemp != cells.end(); cellTemp++)
+    {
+        if (cellTemp->getId()!=cell->getId()){
+        if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= spawnDistance*1.5)
+        {
+            adjacentCells.push_back(adjacentCell(&(*cellTemp), angleBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY())));
+        }}
+    }
+    return adjacentCells;
+}
+void Surface::resetColors()
+{
+    extern const sf::Color ALIVE_COLOR;
+    extern const sf::Color DEAD_COLOR;
+    for(auto cell = cells.begin();cell!=cells.end();cell++){
+        if(cell->getStatus()){
+        cell->setFillColor(ALIVE_COLOR);
+        }else{
+            cell->setFillColor(DEAD_COLOR);
+
+        }
+
+    }
+}
