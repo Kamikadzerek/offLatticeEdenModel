@@ -13,6 +13,7 @@ public:
     int getId() const;
     sf::CircleShape getCircleShape();
     void setFillColor(sf::Color color);
+    static void resetCounter();
 private:
     static inline int counter = 0;
     int id;

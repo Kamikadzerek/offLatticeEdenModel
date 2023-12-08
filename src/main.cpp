@@ -15,9 +15,9 @@
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
-extern const int NUMBEROFANGLES = 32;
+extern const int NUMBEROFANGLES = 360;
 extern const double SIZE = 4;
-extern const double OUTLINETHICNESS = 1.5;
+extern const double OUTLINETHICNESS = 1;
 //----------------------------------------------------------------
 extern const double WIDTH = 1920 / 2;//1920 / 2;
 extern const double HEIGHT = 1080;   //1080
@@ -92,9 +92,9 @@ int main(int argc, char *argv[])
     if (!isSetV)
         VERSION = 'C';
     if (!isSetLOC)
-        LIMITOFCELLS = 10000;
+        LIMITOFCELLS = 8000;
     if (!isSetIBO)
-        ITERATIONBYONE = 2000;
+        ITERATIONBYONE = 1000;
     start = std::chrono::high_resolution_clock::now();
     std::cout << "START\n";
     // Window
@@ -262,7 +262,6 @@ int main(int argc, char *argv[])
                 }
                 stop = std::chrono::high_resolution_clock::now();
             }else{
-                std::cout<<"KONIEC\n";
             }
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
             iterationText.setString("Iteration: " + std::to_string(surface.getIterationCounter()));

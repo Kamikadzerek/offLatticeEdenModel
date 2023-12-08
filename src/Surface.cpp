@@ -12,32 +12,9 @@ double distanceBtwTwoPoints(double x1, double y1, double x2, double y2)
 }
 double angleBtwTwoPoints(double x1, double y1, double x2, double y2)
 {
-    double angle = std::abs(atan((y2 - y1) / (x2 - x1)));
-    if (x2 >= x1 && y2 >= y1)
-    {
-    }
-    else if (x2 <= x1 && y2 >= y1)
-    {
-        angle += (M_PI / 2);
-    }
-    else if (x2 <= x1 && y2 <= y1)
-    {
-        angle += M_PI;
-    }
-    else if (x2 >= x1 && y2 <= y1)
-    {
-        angle += (3 * M_PI / 2);
-    }
-    if (y2 == y1)
-    {
-        if (x1 > x2)
-        {
-            angle = M_PI;
-        }
-        else
-        {
-            angle = 0;
-        }
+    double angle = atan2((y2 - y1) , (x2 - x1));
+    if(angle<0){
+        angle += 2*M_PI;
     }
     return angle;
 }
@@ -59,12 +36,15 @@ std::ostream &operator<<(std::ostream &out, Cell *cell)
 }
 std::ostream &operator<<(std::ostream &out, const std::vector<Surface::adjacentCell> &vecAC)
 {
+    std::vector<Surface::adjacentCell> vAC = vecAC;
+    std::sort(vAC.begin(), vAC.end(),[](Surface::adjacentCell c1, Surface::adjacentCell c2)
+              { return c1.angle < c2.angle; });
     out << "AdjacentCells:{";
-    for (const Surface::adjacentCell cell: vecAC)
+    for (const Surface::adjacentCell cell: vAC)
     {
         out << "\n"
             << cell.cell << ", angle: " << cell.angle * (180 / M_PI);
-        if (cell.cell->getId() != vecAC.back().cell->getId())
+        if (cell.cell->getId() != vAC.back().cell->getId())
         {
             out << ",";
         }
@@ -170,6 +150,7 @@ void Surface::updateC(int numberOfIteration)
 }
 void Surface::clear()
 {
+    Cell::resetCounter();
     aliveCellsCounter = 0;
     iterationCounter = 0;
     cells.clear();
@@ -329,11 +310,10 @@ void Surface::printCellInfoByClick(double x, double y)
 std::vector<Surface::adjacentCell> Surface::getAdjacentCells(const Cell *cell)
 {
     std::vector<Surface::adjacentCell> adjacentCells = {};
-    //    for (Cell cellTemp: cells)
     for (auto cellTemp = cells.begin(); cellTemp != cells.end(); cellTemp++)
     {
         if (cellTemp->getId()!=cell->getId()){
-        if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= spawnDistance*1.5)
+        if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= spawnDistance+1)
         {
             adjacentCells.push_back(adjacentCell(&(*cellTemp), angleBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY())));
         }}

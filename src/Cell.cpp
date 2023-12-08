@@ -73,3 +73,7 @@ void Cell::setFillColor(sf::Color color)
 {
     circleShape.setFillColor(color);
 }
+void Cell::resetCounter()
+{
+    counter = 0;
+}
