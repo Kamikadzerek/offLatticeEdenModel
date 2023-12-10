@@ -1,25 +1,123 @@
-#include "SFML/Graphics.hpp"
+#include <iostream>
+#include <vector>
+#include "SFML/Graphics/Color.hpp"
+#include "SFML/Graphics/RectangleShape.hpp"
+template <typename T>
 class Cell
 {
 public:
-    Cell(double x, double y);
-    void alive();
-    void death();
-    Cell &operator=(Cell cell);
-    bool getStatus() const;
-    double getX() const;
-    double getY() const;
-    double getRadius() const;
-    int getId() const;
-    sf::CircleShape getCircleShape();
-    void setFillColor(sf::Color color);
-    static void resetCounter();
-private:
+    Cell(double X, double Y)
+    {
+        id = counter;
+        counter++;
+        extern const double SIZE;
+        extern const double OUTLINETHICNESS;
+        extern const sf::Color EDGE_COLOR;
+        extern const sf::Color ALIVE_COLOR;
+        status = true;
+        x = X;
+        y = Y;
+        size = SIZE;
+        if constexpr (std::is_same<T,sf::RectangleShape>::value){
+            drawable.setPosition(sf::Vector2f(x,y));
+            drawable.setFillColor(ALIVE_COLOR);
+            drawable.setSize(sf::Vector2f(size-OUTLINETHICNESS/2,size-OUTLINETHICNESS/2));
+            drawable.setOutlineColor(EDGE_COLOR);
+            drawable.setOutlineThickness(OUTLINETHICNESS);
+        }else{
+            drawable.setPosition(sf::Vector2f(x, y));
+            drawable.setFillColor(ALIVE_COLOR);
+            drawable.setRadius(size/2 - OUTLINETHICNESS / 2);
+            drawable.setOutlineColor(EDGE_COLOR);
+            drawable.setOutlineThickness(OUTLINETHICNESS);
+            drawable.setPointCount(100);
+        }
+
+    }
+    void alive()
+    {
+        extern const sf::Color ALIVE_COLOR;
+        status = true;
+        drawable.setFillColor(ALIVE_COLOR);
+    }
+    void death()
+    {
+        extern const sf::Color DEAD_COLOR;
+        status = false;
+        drawable.setFillColor(DEAD_COLOR);
+    }
+    Cell &operator=(Cell cell)
+    {
+        status = cell.getStatus();
+        x = cell.getX();
+        y = cell.getY();
+        drawable = cell.getDrawable();
+        return *this;
+    }
+    bool getStatus() const
+    {
+        return status;
+    }
+    double getX() const
+    {
+        return x;
+    }
+    double getY() const
+    {
+        return y;
+    }
+    double getSize() const
+    {
+        return size;
+    }
+    int getId() const
+    {
+        return id;
+    }
+    T getDrawable() const
+    {
+        return drawable;
+    }
+    static void resetCounter(){
+        counter = 0;
+    }
+    void setFillColor(sf::Color color)
+    {
+       drawable.setFillColor(color);
+    }
+
+    T drawable;
     static inline int counter = 0;
     int id;
-    bool status;//Dead-False, Alive-True
+    bool status;
     double x;
     double y;
-    double radius;
-    sf::CircleShape circleShape;
+    double size;
 };
+template<typename T>
+std::ostream &operator<<(std::ostream &out, typename std::vector<Cell<T>>::iterator cell)
+{
+    out << "Cell {id: " << cell->getId() << "; "
+        << "x: " << cell->getX() << "; "
+        << "y: " << cell->getY() << "; "
+        << "status: " << cell->getStatus() << "}";
+    return out;
+}
+template<typename T>
+std::ostream &operator<<(std::ostream &out, Cell<T> *cell)
+{
+    out << "Cell* {id: " << cell->getId() << "; "
+        << "x: " << cell->getX() << "; "
+        << "y: " << cell->getY() << "; "
+        << "status: " << cell->getStatus() << "}";
+    return out;
+}
+template <typename T>
+std::ostream &operator<<(std::ostream &out, const Cell<T> &cell)
+{
+    out << "Cell& {id: " << cell.getId() << "; "
+        << "x: " << cell.getX() << "; "
+        << "y: " << cell.getY() << "; "
+        << "status: " << cell.getStatus() << "}";
+    return out;
+}

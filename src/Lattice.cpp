@@ -5,7 +5,6 @@
 #include <random>
 #include <set>
 #include <thread>
-const double PI = 3.14159265358;
 extern const double WIDTH;
 extern const double HEIGHT;
 template<typename S>
@@ -34,7 +33,7 @@ void Lattice::updateA(int numberOfIteration)
     {
         iterationCounter++;
         possibleCoords.clear();
-        for (SqrCell &cell: cells)
+        for (Cell<sf::RectangleShape> &cell: cells)
         {
             if (cell.getStatus())
             {
@@ -71,7 +70,7 @@ void Lattice::updateB(int numberOfIteration)
     {
         iterationCounter++;
         possibleCoords.clear();
-        for (SqrCell &cell: cells)
+        for (Cell<sf::RectangleShape> &cell: cells)
         {
             if (cell.getStatus())
             {
@@ -103,7 +102,7 @@ void Lattice::updateC(int numberOfIteration)
     {
         bool isConflicting = true;
         iterationCounter++;
-        SqrCell *randomCell = &cells[rand() % cells.size()];
+        Cell<sf::RectangleShape> *randomCell = &cells[rand() % cells.size()];
         while (!randomCell->getStatus())
         {
             randomCell = &cells[rand() % cells.size()];
@@ -134,7 +133,7 @@ void Lattice::clear()
     cells.clear();
     cells.emplace_back(initialX, initialY);
 }
-bool Lattice::cellIsConflicting(const std::vector<SqrCell> &cells, double x, double y)
+bool Lattice::cellIsConflicting(const std::vector<Cell<sf::RectangleShape>> &cells, double x, double y)
 {
     for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
     {
@@ -152,7 +151,7 @@ int Lattice::getAliveCellsCounter() const
 {
     return aliveCellsCounter;
 }
-const std::vector<SqrCell> &Lattice::getCells() const
+const std::vector<Cell<sf::RectangleShape>> &Lattice::getCells() const
 {
     return cells;
 }
@@ -165,7 +164,7 @@ double Lattice::radiusOfFittedEdge(const sf::CircleShape edge)
     for (double testRadius = 1.; testRadius < WIDTH; testRadius += 1)
     {
         double sumSquares = 0;
-        for (const SqrCell &cell: cells)
+        for (const Cell<sf::RectangleShape> &cell: cells)
         {
             if (cell.getStatus())
             {
@@ -189,7 +188,7 @@ sf::Vector2f Lattice::getCenterOfMass()
 {
     double sumX = 0;
     double sumY = 0;
-    for (const SqrCell &cell: cells)
+    for (const Cell<sf::RectangleShape> &cell: cells)
     {
         sumX += cell.getX() + SIZE / 2;
         sumY += cell.getY() + SIZE / 2;

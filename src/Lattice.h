@@ -1,4 +1,7 @@
-#include "SqrCell.h"
+#include "Cell.h"
+#include "SFML/Graphics/RectangleShape.hpp"
+#include "SFML/Graphics/CircleShape.hpp"
+#include "SFML/System/Vector2.hpp"
 #include <valarray>
 #include <vector>
 extern const double SIZE;
@@ -9,7 +12,7 @@ private:
     double initialY;
     int iterationCounter;
     int aliveCellsCounter;
-    std::vector<SqrCell> cells;
+    std::vector<Cell<sf::RectangleShape>> cells;
     struct displacement
     {
         double dx,dy;
@@ -33,12 +36,12 @@ private:
             {-SIZE, -SIZE},
     };
     static bool
-    cellIsConflicting(const std::vector<SqrCell> &cells, double x, double y);
+    cellIsConflicting(const std::vector<Cell<sf::RectangleShape>> &cells, double x, double y);
 
 public:
     int getIterationCounter() const;
     int getAliveCellsCounter() const;
-    const std::vector<SqrCell> &getCells() const;
+    const std::vector<Cell<sf::RectangleShape>> &getCells() const;
     Lattice();
     void updateA(int numberOfIteration);
     void updateB(int numberOfIteration);
