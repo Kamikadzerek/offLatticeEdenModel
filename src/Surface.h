@@ -2,6 +2,7 @@
 #include "SFML/Graphics/CircleShape.hpp"
 #include <chrono>
 #include <cmath>
+#include <fstream>
 #include <random>
 #include <set>
 #include <vector>
@@ -12,13 +13,11 @@ template<typename T>
 class Surface// store all cells
 {
 private:
-    double initialX;
-    double initialY;
-    int iterationCounter;
-    int aliveCellsCounter;
-    double spawnDistance = SIZE;//*1.0005;
-    std::vector<Cell<T>> cells;
-    std::vector<double> angles;
+    struct adjacentCell
+    {
+        Cell<T> *cell;
+        double angle;
+    };
     struct path
     {
         double x;
@@ -36,6 +35,8 @@ private:
             return (x < coord.x) || ((!(coord.x < x)) && (y < coord.y));
         }
     };
+    std::vector<Cell<T>> cells;
+    std::vector<double> angles;
     std::vector<displacement> displacements = {
             {0, SIZE},
             {0, -SIZE},
@@ -46,6 +47,11 @@ private:
             {-SIZE, SIZE},
             {-SIZE, -SIZE},
     };
+    double initialX;
+    double initialY;
+    int iterationCounter;
+    int aliveCellsCounter;
+    double spawnDistance = SIZE;//*1.0005;
     static bool cellIsConflicting(const std::vector<Cell<T>> &cells, double x, double y)
     {
         if constexpr (std::is_same<T, sf::RectangleShape>::value)
@@ -121,11 +127,68 @@ private:
     }
 
 public:
-    struct adjacentCell
+    Surface()
     {
-        Cell<T> *cell;
-        double angle;
-    };
+        aliveCellsCounter = 1;
+        initialX = WIDTH / 2;
+        initialY = HEIGHT / 2;
+        iterationCounter = 0;
+        if constexpr (std::is_same<T, sf::CircleShape>::value)
+        {
+            extern const int NUMBEROFANGLES;
+            for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / NUMBEROFANGLES)
+            {
+                angles.push_back(angle);
+            }
+        }
+        cells.emplace_back(initialX, initialY);
+    }
+    explicit Surface(std::string path)
+    {
+        std::string line;
+        std::ifstream fin;
+        fin.open(path);
+        std::getline(fin, line);
+        iterationCounter = std::stoi(line);
+        aliveCellsCounter = 0;
+        initialX = WIDTH / 2;
+        initialY = HEIGHT / 2;
+        if constexpr (std::is_same<T, sf::CircleShape>::value)
+        {
+            extern const int NUMBEROFANGLES;
+            for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / NUMBEROFANGLES)
+            {
+                angles.push_back(angle);
+            }
+        }
+        while (getline(fin, line))
+        {
+            double x;
+            double y;
+            bool status;
+            std::string buff;
+            std::istringstream iss(line);
+            int i = 0;
+            while (getline(iss, buff, ','))
+            {
+                if (i == 0)
+                {
+                    x = stof(buff);
+                }
+                else if (i == 1)
+                {
+                    y = stof(buff);
+                }
+                else if (i == 2)
+                {
+                    status = buff != "0";
+                }
+                i++;
+            }
+            cells.emplace_back(x, y, status);
+            if (status) { aliveCellsCounter++; }
+        }
+    }
     std::vector<adjacentCell> getAdjacentCells(const Cell<T> *cell)
     {
         std::vector<Surface::adjacentCell> adjacentCells = {};
@@ -133,7 +196,7 @@ public:
         {
             if (cellTemp->getId() != cell->getId())
             {
-                if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= spawnDistance + 1)
+                if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= sqrt(2 * pow(spawnDistance, 2)))
                 {
                     adjacentCells.push_back(adjacentCell(&(*cellTemp), angleBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY())));
                 }
@@ -154,7 +217,7 @@ public:
 
                 std::vector<Surface::adjacentCell> adjacentCells = getAdjacentCells(&cell);
                 std::cout << cell << "\n";
-                //                std::cout << adjacentCells;
+                //                                std::cout << adjacentCells;
                 std::cout << "\n--------------------------------------------------------\n";
             }
         }
@@ -199,6 +262,7 @@ public:
 
         Cell<T> *currentCell = edgeCells.back();
         std::vector<Surface::adjacentCell> adjacentCells = {};
+        //        bool isDone = false;
         do {
             adjacentCells.clear();
             adjacentCells = getAdjacentCells(currentCell);
@@ -206,16 +270,21 @@ public:
                       { return c1.angle < c2.angle; });
             for (auto adjacentCell = adjacentCells.begin(); adjacentCell < adjacentCells.end(); adjacentCell++)
             {
+                //                isDone = false;
+                //                if (!isDone)
+                //                {
                 if (adjacentCells.size() == 1)
                 {
                     edgeCells.push_back(adjacentCells.back().cell);
                     currentCell = edgeCells.back();
+                    //                    isDone = true;
                     break;
                 }
                 if (edgeCells.size() < 2)
                 {
                     edgeCells.push_back(adjacentCells.begin()->cell);
                     currentCell = edgeCells.back();
+                    //                    isDone = true;
                     break;
                 }
                 if (adjacentCell->cell->getId() == (edgeCells.end()[-2])->getId())
@@ -229,8 +298,10 @@ public:
                         edgeCells.push_back((adjacentCell + 1)->cell);
                     }
                     currentCell = edgeCells.back();
+                    //                    isDone = true;
                     break;
                 }
+                //                }
             }
 
         } while (currentCell != farRightCell);
@@ -247,22 +318,6 @@ public:
     const std::vector<Cell<T>> &getCells() const
     {
         return cells;
-    }
-    Surface()
-    {
-        aliveCellsCounter = 1;
-        initialX = WIDTH / 2;
-        initialY = HEIGHT / 2;
-        iterationCounter = 0;
-        if constexpr (std::is_same<T, sf::CircleShape>::value)
-        {
-            extern const int NUMBEROFANGLES;
-            for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / NUMBEROFANGLES)
-            {
-                angles.push_back(angle);
-            }
-        }
-        cells.emplace_back(initialX, initialY);
     }
     void circleUpdateB(int numberOfIteration)
     {
@@ -312,7 +367,6 @@ public:
             auto *cell = &cells[index];
             while (!cell->getStatus())
             {
-                std::cout<<"DUPA\n";
                 index = rand() % cells.size();
                 cell = &cells[index];
             }
@@ -345,6 +399,7 @@ public:
     // from all uninfected cells adjacent to the cluster.
     // Version A is version B with deleting duplicate from possibleCoords.
     {
+        resetColors();
         std::vector<coords> possibleCoords;
         for (int i = 0; i < numberOfIteration; i++)
         {
@@ -382,6 +437,7 @@ public:
     // to adjacent uninfected cells is chosen with the same probability
     // (the original Eden model).
     {
+        resetColors();
         std::vector<coords> possibleCoords;
         for (int i = 0; i < numberOfIteration; i++)
         {
@@ -415,6 +471,7 @@ public:
     // In version C, firstly a boundary cell of the cluster is randomly chosen,
     // then an uninfected adjacent cell is randomly chosen to be infected.
     {
+        resetColors();
         for (int i = 0; i < numberOfIteration; i++)
         {
             bool isConflicting = true;
@@ -464,6 +521,75 @@ public:
         }
         return angle;
     }
+    void saveToFile(std::string path)
+    {
+        extern char VERSION;
+        extern const int NUMBEROFANGLES;
+        std::ofstream fout;
+        std::string fileName;
+        std::string aliveCellCounterString = std::to_string(cells.size());
+        std::string aliveCellCounterStringFormated = std::string(6 - aliveCellCounterString.size(), '0').append(aliveCellCounterString);
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            fileName = "_Square_Ver" + std::string(1, VERSION) + std::string("_NOC") + aliveCellCounterStringFormated + ".csv";
+        }
+        else
+        {
+            fileName = "_Circle_Ver" + std::string(1, VERSION) + std::string("_NOC") + aliveCellCounterStringFormated + "_NOA" + std::to_string(NUMBEROFANGLES) + ".csv";
+        }
+        std::string fullPath = path + (path.back() != '/' ? "/" : "") + fileName;
+        fout.open(fullPath);
+        fout << getIterationCounter() << std::endl;//saving to file iteratorCounter
+        for (Cell<T> cell: cells)
+        {
+            fout << cell.getX() << "," << cell.getY() << "," << cell.getStatus() << std::endl;
+        }
+        fout.close();
+        std::cout << "Saved to: "
+                  << "\"" << fullPath << "\"\n";
+    }
+    double getSurfaceRoughness(double l)// must be: L%l=0
+    {
+        std::vector<Cell<T>*> edgeCells = getEdgeCells();
+        sf::CircleShape edge = getEstimateEdge(edgeCells);
+        double edgeRadius = edge.getRadius();
+        sf::Vector2f centerCoords = getCenterOfMass();
+        std::sort(edgeCells.begin(),
+                  edgeCells.end(),
+                  [this, centerCoords](Cell<T>* c1, Cell<T>* c2)
+                  {
+                      return angleBtwTwoPoints(centerCoords.x, centerCoords.y, c1->getX(), c1->getY()) < angleBtwTwoPoints(centerCoords.x, centerCoords.y, c2->getX(), c2->getY());
+                  });
+        double L = (M_PI * pow(edgeRadius, 2));
+        double arc = (l / L) * 2 * M_PI;
+        int numberOfSections = L / l;
+        std::vector<std::vector<Cell<T>*>> cellSections;
+        for (double angle = 0; angle <= 2 * M_PI - arc; angle += arc)
+        {
+            std::vector<Cell<T>*> tempVector;
+
+            std::copy_if(edgeCells.begin(),
+                         edgeCells.end(),
+                         std::back_inserter(tempVector),
+                         [this, centerCoords, angle, arc](Cell<T>* c)
+                         {
+                             return angleBtwTwoPoints(centerCoords.x, centerCoords.y, c->getX(), c->getY()) > angle &&
+                                    angleBtwTwoPoints(centerCoords.x, centerCoords.y, c->getX(), c->getY()) <= angle + arc;
+                         });
+            cellSections.push_back(tempVector);
+        }
+        double sum = 0;
+        for(const std::vector<Cell<T>*> section: cellSections){
+            double sectionRadius = getEstimateEdge(section).getRadius();
+            for(Cell<T>* cell: section){
+                sum += pow(distanceBtwTwoPoints(centerCoords.x,centerCoords.y,cell->getX(),cell->getY())-sectionRadius,2);
+            }
+        }
+        return sqrt((sum/l)/double(numberOfSections));
+    }
+
+
+    void generateAndSaveToFile() {}
 };
 template<typename T>
 std::ostream &operator<<(std::ostream &out, const std::vector<typename Surface<T>::adjacentCell> &vecAC)

@@ -1,8 +1,8 @@
-#include <iostream>
-#include <vector>
 #include "SFML/Graphics/Color.hpp"
 #include "SFML/Graphics/RectangleShape.hpp"
-template <typename T>
+#include <iostream>
+#include <vector>
+template<typename T>
 class Cell
 {
 public:
@@ -18,21 +18,53 @@ public:
         x = X;
         y = Y;
         size = SIZE;
-        if constexpr (std::is_same<T,sf::RectangleShape>::value){
-            drawable.setPosition(sf::Vector2f(x,y));
-            drawable.setFillColor(ALIVE_COLOR);
-            drawable.setSize(sf::Vector2f(size-OUTLINETHICNESS/2,size-OUTLINETHICNESS/2));
-            drawable.setOutlineColor(EDGE_COLOR);
-            drawable.setOutlineThickness(OUTLINETHICNESS);
-        }else{
-            drawable.setPosition(sf::Vector2f(x, y));
-            drawable.setFillColor(ALIVE_COLOR);
-            drawable.setRadius(size/2 - OUTLINETHICNESS / 2);
-            drawable.setOutlineColor(EDGE_COLOR);
-            drawable.setOutlineThickness(OUTLINETHICNESS);
+        drawable.setPosition(sf::Vector2f(x, y));
+        drawable.setFillColor(ALIVE_COLOR);
+        drawable.setOutlineColor(EDGE_COLOR);
+        drawable.setOutlineThickness(OUTLINETHICNESS);
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            drawable.setSize(sf::Vector2f(size - OUTLINETHICNESS / 2, size - OUTLINETHICNESS / 2));
+        }
+        else
+        {
+            drawable.setRadius(size / 2 - OUTLINETHICNESS / 2);
             drawable.setPointCount(100);
         }
-
+    }
+    Cell(double X, double Y, bool Status)
+    {
+        id = counter;
+        counter++;
+        extern const double SIZE;
+        extern const double OUTLINETHICNESS;
+        extern const sf::Color EDGE_COLOR;
+        extern const sf::Color ALIVE_COLOR;
+        extern const sf::Color DEAD_COLOR;
+        status = Status;
+        x = X;
+        y = Y;
+        size = SIZE;
+        drawable.setPosition(sf::Vector2f(x, y));
+        drawable.setOutlineColor(EDGE_COLOR);
+        drawable.setOutlineThickness(OUTLINETHICNESS);
+        if (status)
+        {
+            drawable.setFillColor(ALIVE_COLOR);
+        }
+        else
+        {
+            drawable.setFillColor(DEAD_COLOR);
+        }
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            drawable.setSize(sf::Vector2f(size - OUTLINETHICNESS / 2, size - OUTLINETHICNESS / 2));
+        }
+        else
+        {
+            drawable.setRadius(size / 2 - OUTLINETHICNESS / 2);
+            drawable.setPointCount(100);
+        }
     }
     void alive()
     {
@@ -78,14 +110,16 @@ public:
     {
         return drawable;
     }
-    static void resetCounter(){
+    static void resetCounter()
+    {
         counter = 0;
     }
     void setFillColor(sf::Color color)
     {
-       drawable.setFillColor(color);
+        drawable.setFillColor(color);
     }
 
+private:
     T drawable;
     static inline int counter = 0;
     int id;
@@ -112,7 +146,7 @@ std::ostream &operator<<(std::ostream &out, Cell<T> *cell)
         << "status: " << cell->getStatus() << "}";
     return out;
 }
-template <typename T>
+template<typename T>
 std::ostream &operator<<(std::ostream &out, const Cell<T> &cell)
 {
     out << "Cell& {id: " << cell.getId() << "; "
