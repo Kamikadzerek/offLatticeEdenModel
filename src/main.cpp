@@ -1,12 +1,17 @@
 #include "Surface.h"
+#include "PlotsGenerators.cpp"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
 #include <chrono>
+#include <filesystem>
 #include <iostream>
 #include <random>
 #define SQUARES false
 extern char VERSION = 'C';
-std::string saveDir = "/home/szymek/Projects/ClionProjects/OffLaticeEdenModel/Saved/CC360";
+extern const std::string surfacesPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Surfaces";
+extern const std::string dataPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Data";
+extern const std::string plotsPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Plots";
+extern const std::string imagesPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Images";
 // Available Models:
 // -Lattice A
 // -Lattice B
@@ -14,9 +19,9 @@ std::string saveDir = "/home/szymek/Projects/ClionProjects/OffLaticeEdenModel/Sa
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
-extern const int NUMBEROFANGLES = 360;
-int LIMITOFCELLS = 10000;
-int ITERATIONBYONE = 1000;
+extern const int NUMBEROFANGLES = 61;
+int LIMITOFCELLS = 1000;
+int ITERATIONBYONE = 500;
 //----------------------------------------------------------------
 extern const double WIDTH = 1920 / 2;//1920 / 2;
 extern const double HEIGHT = 1080;   //1080
@@ -26,9 +31,10 @@ extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
 extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
 bool DRAWONLYALIVE = false;
+bool DRAWCELLS = true;
 bool DRAWEDGE = true;
-extern const double SIZE = 3;
-extern const double OUTLINETHICNESS = 1;
+extern const double SIZE = 1;
+extern const double OUTLINETHICNESS = 0;
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 int main(int argc, char *argv[])
@@ -57,7 +63,7 @@ int main(int argc, char *argv[])
 #if SQUARES == true
     Surface<sf::RectangleShape> surface;
 #else
-//    Surface<sf::CircleShape> surface(saveDir+"_Circle_VerB_NOC1001_NOA360.csv");
+    //    Surface<sf::CircleShape> surface("_Circle_VerB_NOC1001_NOA360.csv");
     Surface<sf::CircleShape> surface;
 #endif
     while (window.isOpen())
@@ -81,8 +87,9 @@ int main(int argc, char *argv[])
                         surface.clear();
                         start = std::chrono::high_resolution_clock::now();
                     }
-                    else if (ev.key.code == sf::Keyboard::S){
-                        surface.saveToFile(saveDir);
+                    else if (ev.key.code == sf::Keyboard::S)
+                    {
+                        surface.saveToFile();
                     }
                     break;
             }
@@ -120,19 +127,15 @@ int main(int argc, char *argv[])
                     surface.circleUpdateC(ITERATIONBYONE);
                 }
             }
-//            surface.saveToFile(saveDir);
         }
-        else if(!flag_END_PRINTED){
-//            surface.saveToFile(saveDir);
-            double L = M_PI * pow(surface.getEstimateEdge(surface.getEdgeCells()).getRadius(),2);
-            double step = L/100;
-            for(double l=step;l<=L;l+=step){
-                std::cout<<l<<"\t"<<surface.getSurfaceRoughness(l)<<"\n";
-            }
-
-
-
-            std::cout<<"END\n";
+        else if (!flag_END_PRINTED)
+        {
+//            surface.saveToFile();
+//            surface.saveToFileAllSurfaceRoughness();
+//            surface.savePlotRoughness();
+            surface.saveToFileAllNumberOfCellsEnclosedByRadius();
+            saveAllPlots();
+            std::cout << "END\n";
             flag_END_PRINTED = true;
         }
         stop = std::chrono::high_resolution_clock::now();
@@ -152,7 +155,7 @@ int main(int argc, char *argv[])
                     window.draw(cell.getDrawable());
             }
         }
-        else
+        else if (DRAWCELLS)
         {
             for (const auto &cell: surface.getCells())
             {

@@ -1,14 +1,22 @@
 #include "Cell.h"
 #include "SFML/Graphics/CircleShape.hpp"
+//#include "gnuplot-iostream.h"
 #include <chrono>
 #include <cmath>
+#include <filesystem>
 #include <fstream>
 #include <random>
 #include <set>
+#include <thread>
 #include <vector>
+extern const std::string surfacesPath;
+extern const std::string dataPath;
+extern const std::string plotsPath;
 extern const double WIDTH;
 extern const double HEIGHT;
 extern const double SIZE;
+extern char VERSION;
+extern const int NUMBEROFANGLES;
 template<typename T>
 class Surface// store all cells
 {
@@ -41,17 +49,46 @@ private:
             {0, SIZE},
             {0, -SIZE},
             {SIZE, 0},
-            {SIZE, SIZE},
-            {SIZE, -SIZE},
+            //            {SIZE, SIZE},
+            //            {SIZE, -SIZE},
             {-SIZE, 0},
-            {-SIZE, SIZE},
-            {-SIZE, -SIZE},
+            //            {-SIZE, SIZE},
+            //            {-SIZE, -SIZE},
     };
     double initialX;
     double initialY;
     int iterationCounter;
     int aliveCellsCounter;
     double spawnDistance = SIZE;//*1.0005;
+    std::string name;
+    bool cellIsConflicting(double x, double y)
+    {
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
+            {
+                if (std::abs(cellTemp->getX() - x) < SIZE)
+                    if (std::abs(cellTemp->getY() - y) < SIZE)
+                        return true;
+            }
+            return false;
+        }
+        else
+        {
+            double radius = cells.begin()->getSize() / 2;
+            for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--)
+            {
+                if (std::abs(cellTemp->getX() - x) < 2 * radius)
+                {
+                    if (distanceBtwTwoPoints(cellTemp->getX(), cellTemp->getY(), x, y) < 2 * radius)
+                    {
+                        return true;
+                    }
+                }
+            }
+            return false;
+        }
+    }
     static bool cellIsConflicting(const std::vector<Cell<T>> &cells, double x, double y)
     {
         if constexpr (std::is_same<T, sf::RectangleShape>::value)
@@ -133,6 +170,7 @@ public:
         initialX = WIDTH / 2;
         initialY = HEIGHT / 2;
         iterationCounter = 0;
+
         if constexpr (std::is_same<T, sf::CircleShape>::value)
         {
             extern const int NUMBEROFANGLES;
@@ -140,6 +178,11 @@ public:
             {
                 angles.push_back(angle);
             }
+            name = "Circles" + std::string(1, VERSION);
+        }
+        else
+        {
+            name = "Squares" + std::string(1, VERSION);
         }
         cells.emplace_back(initialX, initialY);
     }
@@ -147,7 +190,7 @@ public:
     {
         std::string line;
         std::ifstream fin;
-        fin.open(path);
+        fin.open(surfacesPath + path);
         std::getline(fin, line);
         iterationCounter = std::stoi(line);
         aliveCellsCounter = 0;
@@ -233,6 +276,10 @@ public:
         }
         return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
     }
+    std::string getName()
+    {
+        return name;
+    }
     sf::CircleShape getEstimateEdge(const std::vector<Cell<T> *> &edgeCells)
     {
         sf::CircleShape edge;
@@ -243,6 +290,14 @@ public:
         edge.setRadius(radiusOfFittedEdge(edge, edgeCells));
         edge.move(-edge.getRadius(), -edge.getRadius());
         return edge;
+    }
+    int getNumberOfCells()
+    {
+        return cells.size();
+    }
+    std::string getNumberOfCellsFormattedString()
+    {
+        return "NOC" + std::string(7 - std::to_string(cells.size()).size(), '0').append(std::to_string(cells.size()));
     }
     std::vector<Cell<T> *> getEdgeCells()
     {
@@ -311,6 +366,10 @@ public:
     {
         return iterationCounter;
     }
+    std::string getIterationCounterFormattedString() const
+    {
+        return "Iter" + std::string(7 - std::to_string(getIterationCounter()).size(), '0').append(std::to_string(getIterationCounter()));
+    }
     int getAliveCellsCounter() const
     {
         return aliveCellsCounter;
@@ -320,6 +379,9 @@ public:
         return cells;
     }
     void circleUpdateB(int numberOfIteration)
+    // In version B, an infection path from all possible paths from infected
+    // to adjacent uninfected cells is chosen with the same probability
+    // (the original Eden model).
     {
         resetColors();
         std::vector<path> possiblePaths;
@@ -336,7 +398,8 @@ public:
                     {
                         double x = cell.getX() + spawnDistance * double(cos(angle));
                         double y = cell.getY() + spawnDistance * double(sin(angle));
-                        if (!cellIsConflicting(cells, x, y))
+                        //                        if (!cellIsConflicting(cells, x, y))
+                        if (!cellIsConflicting(x, y))
                         {
                             path tempPath{x = x, y = y};
                             possiblePaths.push_back(tempPath);
@@ -355,10 +418,17 @@ public:
                 cells.emplace_back(path.x, path.y);
                 aliveCellsCounter++;
             }
+            saveToFileMeanRadiusOfLivingCells();
         }
     }
     void circleUpdateC(int numberOfIteration)
+    // In version C, firstly a boundary cell of the cluster is randomly chosen,
+    // then an uninfected adjacent cell is randomly chosen to be infected.
     {
+        int lastAliveCellsCounter = 0;
+        int currentAliveCellsCounter = 0;
+        double lastMeanRadius = 0;
+        double currentMeanRadius = 0;
         resetColors();
         for (int i = 0; i < numberOfIteration; i++)
         {
@@ -391,6 +461,16 @@ public:
                     cell->death();
                     aliveCellsCounter--;
                 }
+            }
+//            currentAliveCellsCounter = getAliveCellsCounter();
+//            if(currentAliveCellsCounter>lastAliveCellsCounter){
+//                saveToFileMeanRadiusOfLivingCells();
+//                lastAliveCellsCounter = currentAliveCellsCounter;
+//            }
+            currentMeanRadius = getMeanRadiusOfLivingCells();
+            if(currentMeanRadius>lastMeanRadius){
+                saveToFileMeanRadiusOfLivingCells();
+                lastMeanRadius = currentMeanRadius;
             }
         }
     }
@@ -430,6 +510,7 @@ public:
             coords chosenCoords = possibleCoords[rand() % possibleCoords.size()];
             cells.emplace_back(chosenCoords.x, chosenCoords.y);
             aliveCellsCounter++;
+            saveToFileMeanRadiusOfLivingCells();
         }
     }
     void rectangleUpdateB(int numberOfIteration)
@@ -465,6 +546,7 @@ public:
             coords chosenCoords = possibleCoords[rand() % possibleCoords.size()];
             cells.emplace_back(chosenCoords.x, chosenCoords.y);
             aliveCellsCounter++;
+            saveToFileMeanRadiusOfLivingCells();
         }
     }
     void rectangleUpdateC(int numberOfIteration)
@@ -498,6 +580,7 @@ public:
                 randomCell->death();
                 aliveCellsCounter--;
             }
+//            saveToFileMeanRadiusOfLivingCells();
         }
     }
     void clear()
@@ -521,23 +604,19 @@ public:
         }
         return angle;
     }
-    void saveToFile(std::string path)
+    void saveToFile()
     {
-        extern char VERSION;
-        extern const int NUMBEROFANGLES;
         std::ofstream fout;
         std::string fileName;
-        std::string aliveCellCounterString = std::to_string(cells.size());
-        std::string aliveCellCounterStringFormated = std::string(6 - aliveCellCounterString.size(), '0').append(aliveCellCounterString);
         if constexpr (std::is_same<T, sf::RectangleShape>::value)
         {
-            fileName = "_Square_Ver" + std::string(1, VERSION) + std::string("_NOC") + aliveCellCounterStringFormated + ".csv";
+            fileName = getName() + getNumberOfCellsFormattedString() + getIterationCounterFormattedString() + ".csv";
         }
         else
         {
-            fileName = "_Circle_Ver" + std::string(1, VERSION) + std::string("_NOC") + aliveCellCounterStringFormated + "_NOA" + std::to_string(NUMBEROFANGLES) + ".csv";
+            fileName = getName() + getNumberOfCellsFormattedString() + "NOA" + std::to_string(NUMBEROFANGLES) + getIterationCounterFormattedString() + ".csv";
         }
-        std::string fullPath = path + (path.back() != '/' ? "/" : "") + fileName;
+        std::string fullPath = surfacesPath + (surfacesPath.back() != '/' ? "/" : "") + fileName;
         fout.open(fullPath);
         fout << getIterationCounter() << std::endl;//saving to file iteratorCounter
         for (Cell<T> cell: cells)
@@ -545,33 +624,46 @@ public:
             fout << cell.getX() << "," << cell.getY() << "," << cell.getStatus() << std::endl;
         }
         fout.close();
-        std::cout << "Saved to: "
+        std::cout << "Surface saved to: "
                   << "\"" << fullPath << "\"\n";
+    }
+    double getMeanRadiusOfLivingCells(){
+        int counter = 0;
+        double sum = 0;
+
+        for(const Cell<T> cell:cells){
+            if(cell.getStatus()){
+                sf::Vector2f center = getCenterOfMass();
+                counter++;
+                sum += distanceBtwTwoPoints(center.x,center.y,cell.getX(),cell.getY());
+            }
+        }
+        return sum/counter;
     }
     double getSurfaceRoughness(double l)// must be: L%l=0
     {
-        std::vector<Cell<T>*> edgeCells = getEdgeCells();
+        std::vector<Cell<T> *> edgeCells = getEdgeCells();
         sf::CircleShape edge = getEstimateEdge(edgeCells);
         double edgeRadius = edge.getRadius();
         sf::Vector2f centerCoords = getCenterOfMass();
         std::sort(edgeCells.begin(),
                   edgeCells.end(),
-                  [this, centerCoords](Cell<T>* c1, Cell<T>* c2)
+                  [this, centerCoords](Cell<T> *c1, Cell<T> *c2)
                   {
                       return angleBtwTwoPoints(centerCoords.x, centerCoords.y, c1->getX(), c1->getY()) < angleBtwTwoPoints(centerCoords.x, centerCoords.y, c2->getX(), c2->getY());
                   });
         double L = (M_PI * pow(edgeRadius, 2));
         double arc = (l / L) * 2 * M_PI;
         int numberOfSections = L / l;
-        std::vector<std::vector<Cell<T>*>> cellSections;
+        std::vector<std::vector<Cell<T> *>> cellSections;
         for (double angle = 0; angle <= 2 * M_PI - arc; angle += arc)
         {
-            std::vector<Cell<T>*> tempVector;
+            std::vector<Cell<T> *> tempVector;
 
             std::copy_if(edgeCells.begin(),
                          edgeCells.end(),
                          std::back_inserter(tempVector),
-                         [this, centerCoords, angle, arc](Cell<T>* c)
+                         [this, centerCoords, angle, arc](Cell<T> *c)
                          {
                              return angleBtwTwoPoints(centerCoords.x, centerCoords.y, c->getX(), c->getY()) > angle &&
                                     angleBtwTwoPoints(centerCoords.x, centerCoords.y, c->getX(), c->getY()) <= angle + arc;
@@ -579,16 +671,105 @@ public:
             cellSections.push_back(tempVector);
         }
         double sum = 0;
-        for(const std::vector<Cell<T>*> section: cellSections){
+        for (const std::vector<Cell<T> *> section: cellSections)
+        {
             double sectionRadius = getEstimateEdge(section).getRadius();
-            for(Cell<T>* cell: section){
-                sum += pow(distanceBtwTwoPoints(centerCoords.x,centerCoords.y,cell->getX(),cell->getY())-sectionRadius,2);
+            for (Cell<T> *cell: section)
+            {
+                sum += pow(distanceBtwTwoPoints(centerCoords.x, centerCoords.y, cell->getX(), cell->getY()) - sectionRadius, 2);
             }
         }
-        return sqrt((sum/l)/double(numberOfSections));
+        return sqrt((sum / l) / double(numberOfSections));
     }
+    int getNumberOfCellsEnclosedByRadius(double radius)
+    {
+        int counter = 0;
+        sf::Vector2f center = getCenterOfMass();
+        for (const Cell<T> cell: cells)
+        {
+            if (distanceBtwTwoPoints(center.x, center.y, cell.getX(), cell.getY()) <= radius)
+            {
+                counter++;
+            }
+        }
 
 
+        return counter;
+    }
+    void saveToFileAllSurfaceRoughness()
+    {
+        std::ofstream fout;
+        std::string fileName;
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            fileName = "Rgs_" + getName() + getNumberOfCellsFormattedString() + getIterationCounterFormattedString() + ".csv";
+        }
+        else
+        {
+            fileName = "Rgs_" + getName() + getNumberOfCellsFormattedString() + "NOA" + std::to_string(NUMBEROFANGLES) + getIterationCounterFormattedString() + ".csv";
+        }
+        std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
+        fout.open(fullPath);
+        fout << getIterationCounter() << std::endl;//saving to file iteratorCounter
+        double L = M_PI * pow(getEstimateEdge(getEdgeCells()).getRadius(), 2);
+        double step = L / 100;
+        double end = L / 2;
+        std::cout << "Saving data start!\n";
+        for (double l = step; l <= end; l += step)
+        {
+            std::cout << std::fixed << std::setprecision(2) << l / end * 100 << "%"
+                      << "\n";
+            fout << l << "\t" << getSurfaceRoughness(l) << "\n";
+        }
+        fout.close();
+        std::cout << "Data saved to: "
+                  << "\"" << fullPath << "\"\n";
+    }
+    void saveToFileAllNumberOfCellsEnclosedByRadius()
+    {
+        std::ofstream fout;
+        std::string fileName;
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            fileName = "NumOfCellsEncByRad_" + getName() + getNumberOfCellsFormattedString() + getIterationCounterFormattedString() + ".csv";
+        }
+        else
+        {
+            fileName = "NumOfCellsEncByRad_" + getName() + getNumberOfCellsFormattedString() + "NOA" + std::to_string(NUMBEROFANGLES) + getIterationCounterFormattedString() + ".csv";
+        }
+        std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
+        fout.open(fullPath);
+        fout << getIterationCounter() << std::endl;//saving to file iteratorCounter
+        double R = getEstimateEdge(getEdgeCells()).getRadius()+100;
+        double step = 1;
+        std::cout << "Saving data start!\n";
+        for (double r = step; r <= R; r += step)
+        {
+            std::cout << std::fixed << std::setprecision(2) << r / R * 100 << "%"
+                      << "\n";
+            fout << r << "\t" << getNumberOfCellsEnclosedByRadius(r) << "\n";
+        }
+        fout.close();
+        std::cout << "Data saved to: "
+                  << "\"" << fullPath << "\"\n";
+    }
+    void saveToFileMeanRadiusOfLivingCells(){
+
+        std::ofstream fout;
+        std::string fileName;
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            fileName = "MeanRadOfLivCells_S" + std::string(1, VERSION)+ ".csv";
+        }
+        else
+        {
+            fileName = "MeanRadOfLivCells_C" + std::string(1, VERSION) + "NOA" + std::to_string(NUMBEROFANGLES) + ".csv";
+        }
+        std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
+        fout.open(fullPath,std::ios_base::app);
+        fout << getMeanRadiusOfLivingCells() << "\t" << getAliveCellsCounter() << "\n";
+        fout.close();
+    }
     void generateAndSaveToFile() {}
 };
 template<typename T>
