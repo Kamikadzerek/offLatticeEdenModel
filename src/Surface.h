@@ -1,6 +1,8 @@
+#include "BS_thread_pool.hpp"
 #include "Cell.h"
+#include "CellPrimitive.h"
 #include "SFML/Graphics/CircleShape.hpp"
-//#include "gnuplot-iostream.h"
+#include "gnuplot-iostream.h"
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -61,61 +63,63 @@ private:
     int aliveCellsCounter;
     double spawnDistance = SIZE;//*1.0005;
     std::string name;
-    bool cellIsConflicting(double x, double y)
+    bool cellIsConflicting(const CellPrimitive cell)
     {
+        BS::thread_pool pool;
+        std::vector<std::future<bool>> my_futures;
         if constexpr (std::is_same<T, sf::RectangleShape>::value)
         {
             for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
             {
-                if (std::abs(cellTemp->getX() - x) < SIZE)
-                    if (std::abs(cellTemp->getY() - y) < SIZE)
-                        return true;
+                if (squareIsOverSquare(cellTemp, cell))
+                {
+                    return true;
+                }
             }
             return false;
         }
         else
         {
-            double radius = cells.begin()->getSize() / 2;
             for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--)
             {
-                if (std::abs(cellTemp->getX() - x) < 2 * radius)
-                {
-                    if (distanceBtwTwoPoints(cellTemp->getX(), cellTemp->getY(), x, y) < 2 * radius)
-                    {
-                        return true;
-                    }
-                }
+                //                if(circleIsOverCircle(cellTemp.base(), &cell)){
+                //                    return true;
+                //                }
+                my_futures.push_back(pool.submit_task(
+                        [this, cell, cellTemp]
+                        {
+                            return circleIsOverCircle(cellTemp.base(), &cell);
+                        }));
+            }
+            for (auto &future: my_futures)
+            {
+                if (future.valid())
+                    if (future.wait_for(std::chrono::microseconds(200)) == std::future_status::ready)
+                        if (future.get())
+                            return true;
             }
             return false;
         }
     }
-    static bool cellIsConflicting(const std::vector<Cell<T>> &cells, double x, double y)
+    bool circleIsOverCircle(const Cell<T> *cell1, const CellPrimitive *cell2) const
     {
-        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        double radius = SIZE / 2;
+        if (std::abs(cell1->getX() - cell2->getX()) < 2 * radius)
         {
-            for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
+            if (distanceBtwTwoPoints(cell1->getX(), cell1->getY(), cell2->getX(), cell2->getY()) < 2 * radius)
             {
-                if (std::abs(cellTemp->getX() - x) < SIZE)
-                    if (std::abs(cellTemp->getY() - y) < SIZE)
-                        return true;
+                return true;
             }
-            return false;
         }
-        else
-        {
-            double radius = cells.begin()->getSize() / 2;
-            for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--)
-            {
-                if (std::abs(cellTemp->getX() - x) < 2 * radius)
-                {
-                    if (distanceBtwTwoPoints(cellTemp->getX(), cellTemp->getY(), x, y) < 2 * radius)
-                    {
-                        return true;
-                    }
-                }
-            }
-            return false;
-        }
+        return false;
+    }
+    bool squareIsOverSquare(const Cell<T> &cell1, const CellPrimitive *cell2)
+    {
+
+        if (std::abs(cell1->getX() - cell2->getX()) < SIZE)
+            if (std::abs(cell1->getY() - cell2->getY()) < SIZE)
+                return true;
+        return false;
     }
     static double radiusOfFittedEdge(const sf::CircleShape &edge, const std::vector<Cell<T> *> &edgeCells)
     {
@@ -398,8 +402,7 @@ public:
                     {
                         double x = cell.getX() + spawnDistance * double(cos(angle));
                         double y = cell.getY() + spawnDistance * double(sin(angle));
-                        //                        if (!cellIsConflicting(cells, x, y))
-                        if (!cellIsConflicting(x, y))
+                        if (!cellIsConflicting(CellPrimitive(x, y)))
                         {
                             path tempPath{x = x, y = y};
                             possiblePaths.push_back(tempPath);
@@ -425,10 +428,10 @@ public:
     // In version C, firstly a boundary cell of the cluster is randomly chosen,
     // then an uninfected adjacent cell is randomly chosen to be infected.
     {
-        int lastAliveCellsCounter = 0;
-        int currentAliveCellsCounter = 0;
-        double lastMeanRadius = 0;
-        double currentMeanRadius = 0;
+        //        int lastAliveCellsCounter = 0;
+        //        int currentAliveCellsCounter = 0;
+        //        double lastMeanRadius = 0;
+        //        double currentMeanRadius = 0;
         resetColors();
         for (int i = 0; i < numberOfIteration; i++)
         {
@@ -448,7 +451,7 @@ public:
                 {
                     double x = cell->getX() + spawnDistance * cos(angle);
                     double y = cell->getY() + spawnDistance * sin(angle);
-                    isConflicting = cellIsConflicting(cells, x, y);
+                    isConflicting = cellIsConflicting(CellPrimitive(x, y));
                     if (!isConflicting)
                     {
                         cells.emplace_back(x, y);
@@ -462,16 +465,18 @@ public:
                     aliveCellsCounter--;
                 }
             }
-//            currentAliveCellsCounter = getAliveCellsCounter();
-//            if(currentAliveCellsCounter>lastAliveCellsCounter){
-//                saveToFileMeanRadiusOfLivingCells();
-//                lastAliveCellsCounter = currentAliveCellsCounter;
-//            }
-            currentMeanRadius = getMeanRadiusOfLivingCells();
-            if(currentMeanRadius>lastMeanRadius){
-                saveToFileMeanRadiusOfLivingCells();
-                lastMeanRadius = currentMeanRadius;
-            }
+            //for each NumberOfCell
+            //            currentAliveCellsCounter = getAliveCellsCounter();
+            //            if(currentAliveCellsCounter>lastAliveCellsCounter){
+            //                saveToFileMeanRadiusOfLivingCells();
+            //                lastAliveCellsCounter = currentAliveCellsCounter;
+            //            }
+            //for each Radius
+            //            currentMeanRadius = getMeanRadiusOfLivingCells();
+            //            if(currentMeanRadius>lastMeanRadius){
+            //                saveToFileMeanRadiusOfLivingCells();
+            //                lastMeanRadius = currentMeanRadius;
+            //            }
         }
     }
     void rectangleUpdateA(int numberOfIteration)
@@ -494,7 +499,7 @@ public:
                     {
                         double x = cell.getX() + disp.dx;
                         double y = cell.getY() + disp.dy;
-                        if (!cellIsConflicting(cells, x, y))
+                        if (!cellIsConflicting(CellPrimitive(x, y)))
                             possibleCoords.emplace_back(x, y);
                     }
                     if (possibleCoords.size() == tempPossibleCoordsSize)
@@ -533,7 +538,7 @@ public:
                     {
                         double x = cell.getX() + disp.dx;
                         double y = cell.getY() + disp.dy;
-                        if (!cellIsConflicting(cells, x, y))
+                        if (!cellIsConflicting(CellPrimitive(x, y)))
                             possibleCoords.emplace_back(x, y);
                     }
                     if (possibleCoords.size() == tempPossibleCoordsSize)
@@ -567,7 +572,7 @@ public:
             {
                 double x = randomCell->getX() + disp.dx;
                 double y = randomCell->getY() + disp.dy;
-                if (!cellIsConflicting(cells, x, y))
+                if (!cellIsConflicting(CellPrimitive(x, y)))
                 {
                     cells.emplace_back(x, y);
                     aliveCellsCounter++;
@@ -580,7 +585,7 @@ public:
                 randomCell->death();
                 aliveCellsCounter--;
             }
-//            saveToFileMeanRadiusOfLivingCells();
+            //            saveToFileMeanRadiusOfLivingCells();
         }
     }
     void clear()
@@ -627,18 +632,21 @@ public:
         std::cout << "Surface saved to: "
                   << "\"" << fullPath << "\"\n";
     }
-    double getMeanRadiusOfLivingCells(){
+    double getMeanRadiusOfLivingCells()
+    {
         int counter = 0;
         double sum = 0;
 
-        for(const Cell<T> cell:cells){
-            if(cell.getStatus()){
+        for (const Cell<T> cell: cells)
+        {
+            if (cell.getStatus())
+            {
                 sf::Vector2f center = getCenterOfMass();
                 counter++;
-                sum += distanceBtwTwoPoints(center.x,center.y,cell.getX(),cell.getY());
+                sum += distanceBtwTwoPoints(center.x, center.y, cell.getX(), cell.getY());
             }
         }
-        return sum/counter;
+        return sum / counter;
     }
     double getSurfaceRoughness(double l)// must be: L%l=0
     {
@@ -740,7 +748,7 @@ public:
         std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
         fout.open(fullPath);
         fout << getIterationCounter() << std::endl;//saving to file iteratorCounter
-        double R = getEstimateEdge(getEdgeCells()).getRadius()+100;
+        double R = getEstimateEdge(getEdgeCells()).getRadius() + 100;
         double step = 1;
         std::cout << "Saving data start!\n";
         for (double r = step; r <= R; r += step)
@@ -753,20 +761,21 @@ public:
         std::cout << "Data saved to: "
                   << "\"" << fullPath << "\"\n";
     }
-    void saveToFileMeanRadiusOfLivingCells(){
+    void saveToFileMeanRadiusOfLivingCells()
+    {
 
         std::ofstream fout;
         std::string fileName;
         if constexpr (std::is_same<T, sf::RectangleShape>::value)
         {
-            fileName = "MeanRadOfLivCells_S" + std::string(1, VERSION)+ ".csv";
+            fileName = "MeanRadOfLivCells_S" + std::string(1, VERSION) + ".csv";
         }
         else
         {
             fileName = "MeanRadOfLivCells_C" + std::string(1, VERSION) + "NOA" + std::to_string(NUMBEROFANGLES) + ".csv";
         }
         std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
-        fout.open(fullPath,std::ios_base::app);
+        fout.open(fullPath, std::ios_base::app);
         fout << getMeanRadiusOfLivingCells() << "\t" << getAliveCellsCounter() << "\n";
         fout.close();
     }

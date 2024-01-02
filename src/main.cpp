@@ -19,8 +19,8 @@ extern const std::string imagesPath = std::filesystem::path(std::filesystem::cur
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
-extern const int NUMBEROFANGLES = 61;
-int LIMITOFCELLS = 1000;
+extern const int NUMBEROFANGLES = 360;
+int LIMITOFCELLS = 250000;
 int ITERATIONBYONE = 500;
 //----------------------------------------------------------------
 extern const double WIDTH = 1920 / 2;//1920 / 2;
@@ -32,7 +32,7 @@ extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
 bool DRAWONLYALIVE = false;
 bool DRAWCELLS = true;
-bool DRAWEDGE = true;
+bool DRAWEDGE = false;
 extern const double SIZE = 1;
 extern const double OUTLINETHICNESS = 0;
 auto start = std::chrono::high_resolution_clock::now();
@@ -130,11 +130,10 @@ int main(int argc, char *argv[])
         }
         else if (!flag_END_PRINTED)
         {
-//            surface.saveToFile();
+            surface.saveToFile();
 //            surface.saveToFileAllSurfaceRoughness();
-//            surface.savePlotRoughness();
-            surface.saveToFileAllNumberOfCellsEnclosedByRadius();
-            saveAllPlots();
+//            surface.saveToFileAllNumberOfCellsEnclosedByRadius();
+//            saveAllPlots();
             std::cout << "END\n";
             flag_END_PRINTED = true;
         }
