@@ -1,15 +1,12 @@
-#include "BS_thread_pool.hpp"
 #include "Cell.h"
 #include "CellPrimitive.h"
 #include "SFML/Graphics/CircleShape.hpp"
-#include "gnuplot-iostream.h"
 #include <chrono>
 #include <cmath>
 #include <filesystem>
 #include <fstream>
 #include <random>
 #include <set>
-#include <thread>
 #include <vector>
 extern const std::string surfacesPath;
 extern const std::string dataPath;

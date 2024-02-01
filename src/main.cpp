@@ -1,8 +1,6 @@
-#include "PlotsGenerators.cpp"
 #include "Surface.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
-#include <benchmark/benchmark.h>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
