@@ -1,17 +1,18 @@
-#include "Surface.h"
 #include "PlotsGenerators.cpp"
+#include "Surface.h"
 #include <SFML/Graphics.hpp>
 #include <SFML/Window.hpp>
+#include <benchmark/benchmark.h>
 #include <chrono>
 #include <filesystem>
 #include <iostream>
 #include <random>
 #define SQUARES false
-extern char VERSION = 'C';
-extern const std::string surfacesPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Surfaces";
-extern const std::string dataPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Data";
-extern const std::string plotsPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Plots";
-extern const std::string imagesPath = std::filesystem::path(std::filesystem::current_path())/="Saved/Images";
+extern char VERSION = 'D';
+extern const std::string surfacesPath = std::filesystem::path(std::filesystem::current_path()) /= "Saved/Surfaces";
+extern const std::string dataPath = std::filesystem::path(std::filesystem::current_path()) /= "../../../dane";
+extern const std::string plotsPath = std::filesystem::path(std::filesystem::current_path()) /= "Saved/Plots";
+extern const std::string imagesPath = std::filesystem::path(std::filesystem::current_path()) /= "Saved/Images";
 // Available Models:
 // -Lattice A
 // -Lattice B
@@ -19,9 +20,9 @@ extern const std::string imagesPath = std::filesystem::path(std::filesystem::cur
 // -Off-Lattice B
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
-extern const int NUMBEROFANGLES = 360;
-int LIMITOFCELLS = 250000;
-int ITERATIONBYONE = 500;
+extern const int NUMBEROFANGLES = 180;
+int LIMITOFCELLS = 2000;
+int ITERATIONBYONE = 100;
 //----------------------------------------------------------------
 extern const double WIDTH = 1920 / 2;//1920 / 2;
 extern const double HEIGHT = 1080;   //1080
@@ -32,9 +33,9 @@ extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
 bool DRAWONLYALIVE = false;
 bool DRAWCELLS = true;
-bool DRAWEDGE = false;
-extern const double SIZE = 1;
-extern const double OUTLINETHICNESS = 0;
+bool DRAWEDGE = true;
+extern const double SIZE = 4;
+extern const double OUTLINETHICNESS = 1;
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 int main(int argc, char *argv[])
@@ -63,7 +64,7 @@ int main(int argc, char *argv[])
 #if SQUARES == true
     Surface<sf::RectangleShape> surface;
 #else
-    //    Surface<sf::CircleShape> surface("_Circle_VerB_NOC1001_NOA360.csv");
+    //        Surface<sf::CircleShape> surface("Circle200000.csv");
     Surface<sf::CircleShape> surface;
 #endif
     while (window.isOpen())
@@ -94,7 +95,9 @@ int main(int argc, char *argv[])
                     break;
             }
         }
-        if (surface.getCells().size() <= LIMITOFCELLS)
+        //        if (surface.getCells().size() <= LIMITOFCELLS)
+//        if (surface.getAliveCellsCounter() <= LIMITOFCELLS)
+                if (surface.getEdgeCells().size() <= LIMITOFCELLS)
         {
             if (SQUARES)
             {
@@ -126,15 +129,26 @@ int main(int argc, char *argv[])
                     titleText.setString("Eden Model Off-lattice Version C");
                     surface.circleUpdateC(ITERATIONBYONE);
                 }
+                else if (VERSION == 'D')
+                {
+                    titleText.setString("Eden Model Off-lattice Version D");
+                    surface.circleUpdateD(ITERATIONBYONE);
+                }
             }
         }
         else if (!flag_END_PRINTED)
         {
-            surface.saveToFile();
-//            surface.saveToFileAllSurfaceRoughness();
-//            surface.saveToFileAllNumberOfCellsEnclosedByRadius();
-//            saveAllPlots();
+            //            surface.saveToFileMeanRadiusOfLivingCells();
+            //            savePlotsMeanRadiusOfLivingCells();
+            //            surface.saveToFile("Circle200000.csv");
+            //            surface.saveToFileAllSurfaceRoughness();
+            //            surface.saveToFileAllNumberOfCellsEnclosedByRadius();
+            //            savePlotsNumberOfCellsEnclousedByRadius();
+            //            saveAllPlots();
             std::cout << "END\n";
+            stop = std::chrono::high_resolution_clock::now();
+            auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
+            std::cout << "Execution time: " + std::to_string(double(duration.count()) / 1000) + "s\n";
             flag_END_PRINTED = true;
         }
         stop = std::chrono::high_resolution_clock::now();

@@ -27,7 +27,7 @@ void savePlotsMeanRadiusOfLivingCells()
                << "set key right bottom\n"
                << "set xlabel 'Średni promień'\n"
                << "set ylabel 'Ilość żywych komórek'\n"
-               << "plot '" + dataFile + "' using 1:2 pt 1 ps 1 lc rgb 'black' title 'Dane'\n";
+               << "plot '" + dataFile + "' using 1:2 pt 7 ps 0.2 lc rgb 'black' title 'Dane'\n";
         }
     }
 }
@@ -86,9 +86,9 @@ void savePlotsNumberOfCellsEnclousedByRadius()
                << "; Iteracji:" << std::string_view(dataFilename).substr(dataFilename.size() - 7) << "'\n"
                << "set output '" + output + ".pdf'\n"
                << "set key right bottom\n"
-               << "set xlabel 'R'\n"
+               << "set xlabel 'R^2'\n"
                << "set ylabel 'ilość komórek'\n"
-               << "plot '" + dataFile + "' using 1:2 pt 1 ps 1 lc rgb 'black' title 'Dane'\n";
+               << "plot '" + dataFile + "' using 1:2 pt 1 ps 0.2 lc rgb 'black' title 'Dane'\n";
         }
     }
 }
