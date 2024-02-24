@@ -19,8 +19,8 @@ extern const std::string imagesPath = std::filesystem::path(std::filesystem::cur
 // -Off-Lattice C
 // Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
 extern const int NUMBEROFANGLES = 180;
-int LIMITOFCELLS = 2000;
-int ITERATIONBYONE = 5000;
+int LIMITOFCELLS = 100000;
+int ITERATIONBYONE = 20000;
 //----------------------------------------------------------------
 extern const double WIDTH = 1920 / 2;//1920 / 2;
 extern const double HEIGHT = 1080;   //1080
@@ -93,7 +93,9 @@ int main(int argc, char *argv[])
                     break;
             }
         }
-        if (surface.getEdgeCells().size() <= LIMITOFCELLS)
+        //        if (surface.getEdgeCells().size() <= LIMITOFCELLS)
+        if (surface.getCells().size() <= LIMITOFCELLS)
+        //        if(std::chrono::duration_cast<std::chrono::seconds>(stop - start).count()<100)
         {
             if (SQUARES)
             {
@@ -132,8 +134,8 @@ int main(int argc, char *argv[])
                 }
             }
             auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
-            //            surface.saveToFileTimeOfRunning("CzasStaryAlgorytmkomorkiPrzylegajaceLikely",double(duration.count()));
-            std::cout << "Cells per second: " << surface.getCells().size() / double(duration.count()) << "\n";
+//            surface.saveToFileTimeOfRunning("CzasJeszczeZadszePomiaryIWizualizacje.csv", double(duration.count()));
+            std::cout << LIMITOFCELLS - surface.getCells().size() << "\n";
         }
         else if (!flag_END_PRINTED)
         {

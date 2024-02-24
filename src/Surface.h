@@ -273,7 +273,7 @@ public:
     {
         std::vector<Cell<T> *> edgeCells;
         Cell<T> *farRightCell = nullptr;
-        for (Cell<T> &cell: cells)
+        for ( Cell<T> &cell: cells)
         {
             if (cell.getStatus())
             {
@@ -503,7 +503,7 @@ public:
     // In version C, firstly a boundary cell of the cluster is randomly chosen,
     // then an uninfected adjacent cell is randomly chosen to be infected.
     {
-        int densityOfMeasurements = 200;
+        int densityOfMeasurements = 800;
         resetColors();
         for (int i = 0; i < numberOfIteration; i++)
         {
@@ -542,7 +542,7 @@ public:
             }
             if (iterationCounter % densityOfMeasurements == 0)
             {
-                saveToFileMeanRadiusOfLivingCells("StaryAlgorytmKomorkiPrzylegajace.csv");
+                saveToFileMeanRadiusOfLivingCells("S2O1.csv");
             }
         }
     }
@@ -717,12 +717,11 @@ public:
     {
         int counter = 0;
         double sum = 0;
-
+        const sf::Vector2f center = getCenterOfMass();
         for (const Cell<T> cell: cells)
         {
             if (cell.getStatus())
             {
-                sf::Vector2f center = getCenterOfMass();
                 counter++;
                 sum += distanceBtwTwoPoints(center.x, center.y, cell.getX(), cell.getY());
             }
@@ -869,6 +868,7 @@ public:
         std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
         fout.open(fullPath, std::ios_base::app);
         fout << getMeanRadiusOfLivingCells() << "\t" << getEdgeCells().size() << "\n";
+//        fout << getEstimateEdge(getEdgeCells()).getRadius() << "\t" << getEdgeCells().size() << "\n";
         //        fout << getMeanRadiusOfLivingCells() << "\t" << getAliveCellsCounter() << "\n";
         fout.close();
     }

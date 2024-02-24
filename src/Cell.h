@@ -2,6 +2,7 @@
 #include "SFML/Graphics/RectangleShape.hpp"
 #include <iostream>
 #include <vector>
+extern const double SIZE;
 template<typename T>
 class Cell
 {
@@ -27,7 +28,6 @@ public:
     {
         id = counter;
         counter++;
-        extern const double SIZE;
         extern const double OUTLINETHICNESS;
         extern const sf::Color EDGE_COLOR;
         extern const sf::Color ALIVE_COLOR;
@@ -45,7 +45,7 @@ public:
         }
         else
         {
-            drawable.setRadius(size / 2 - OUTLINETHICNESS / 2);
+            drawable.setRadius(SIZE / 2 - OUTLINETHICNESS/2);
             drawable.setPointCount(100);
         }
     }
