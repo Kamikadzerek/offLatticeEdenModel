@@ -6,6 +6,23 @@ template<typename T>
 class Cell
 {
 public:
+    struct adjacentCell
+    {
+        Cell<T> *cell;
+        double angle;
+    };
+
+private:
+    std::vector<adjacentCell> adjacentCells;
+    T drawable;
+    static inline int counter = 0;
+    int id;
+    bool status;
+    double x;
+    double y;
+    double size;
+
+public:
     Cell(double X, double Y)
     {
         id = counter;
@@ -118,15 +135,14 @@ public:
     {
         drawable.setFillColor(color);
     }
-
-private:
-    T drawable;
-    static inline int counter = 0;
-    int id;
-    bool status;
-    double x;
-    double y;
-    double size;
+    void addAdjacentCell(adjacentCell cell)
+    {
+        adjacentCells.push_back(cell);
+    }
+    std::vector<adjacentCell> getAdjacentCells() const
+    {
+        return adjacentCells;
+    }
 };
 template<typename T>
 std::ostream &operator<<(std::ostream &out, typename std::vector<Cell<T>>::iterator cell)

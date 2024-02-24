@@ -20,11 +20,6 @@ template<typename T>
 class Surface// store all cells
 {
 private:
-    struct adjacentCell
-    {
-        Cell<T> *cell;
-        double angle;
-    };
     struct path
     {
         double x;
@@ -43,6 +38,8 @@ private:
         }
     };
     std::vector<Cell<T>> cells;
+    unsigned long prevIndex;
+    std::vector<Cell<T> *> prevEdgeCells;
     std::vector<double> angles;
     std::vector<displacement> displacements = {
             {0, SIZE},
@@ -158,6 +155,7 @@ public:
         initialX = WIDTH / 2;
         initialY = HEIGHT / 2;
         iterationCounter = 0;
+        cells.reserve(300000);
 
         if constexpr (std::is_same<T, sf::CircleShape>::value)
         {
@@ -220,21 +218,6 @@ public:
             if (status) { aliveCellsCounter++; }
         }
     }
-    std::vector<adjacentCell> getAdjacentCells(const Cell<T> *cell)
-    {
-        std::vector<Surface::adjacentCell> adjacentCells = {};
-        for (auto cellTemp = cells.begin(); cellTemp != cells.end(); cellTemp++)
-        {
-            if (cellTemp->getId() != cell->getId())
-            {
-                if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= sqrt(2 * pow(spawnDistance, 2)))
-                {
-                    adjacentCells.push_back(adjacentCell(&(*cellTemp), angleBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY())));
-                }
-            }
-        }
-        return adjacentCells;
-    }
     void printCellInfoByClick(double x, double y)
     {
         double cellCenterX;
@@ -246,9 +229,8 @@ public:
             if (distanceBtwTwoPoints(cellCenterX, cellCenterY, x, y) < cell.getSize() / 2)
             {
 
-                std::vector<Surface::adjacentCell> adjacentCells = getAdjacentCells(&cell);
+                std::vector<Cell<sf::CircleShape>::adjacentCell> adjacentCells = cell.getAdjacentCells();
                 std::cout << cell << "\n";
-                //                                std::cout << adjacentCells;
                 std::cout << "\n--------------------------------------------------------\n";
             }
         }
@@ -289,7 +271,6 @@ public:
     }
     std::vector<Cell<T> *> getEdgeCells()
     {
-        // Version My
         std::vector<Cell<T> *> edgeCells;
         Cell<T> *farRightCell = nullptr;
         for (Cell<T> &cell: cells)
@@ -305,30 +286,24 @@ public:
         edgeCells.push_back(farRightCell);
 
         Cell<T> *currentCell = edgeCells.back();
-        std::vector<Surface::adjacentCell> adjacentCells = {};
-        //        bool isDone = false;
+        std::vector<Cell<sf::CircleShape>::adjacentCell> adjacentCells = {};
         do {
             adjacentCells.clear();
-            adjacentCells = getAdjacentCells(currentCell);
-            std::sort(adjacentCells.begin(), adjacentCells.end(), [](Surface::adjacentCell c1, Surface::adjacentCell c2)
+            adjacentCells = currentCell->getAdjacentCells();
+            std::sort(adjacentCells.begin(), adjacentCells.end(), [](Cell<sf::CircleShape>::adjacentCell c1, Cell<sf::CircleShape>::adjacentCell c2)
                       { return c1.angle < c2.angle; });
             for (auto adjacentCell = adjacentCells.begin(); adjacentCell < adjacentCells.end(); adjacentCell++)
             {
-                //                isDone = false;
-                //                if (!isDone)
-                //                {
                 if (adjacentCells.size() == 1)
                 {
                     edgeCells.push_back(adjacentCells.back().cell);
                     currentCell = edgeCells.back();
-                    //                    isDone = true;
                     break;
                 }
                 if (edgeCells.size() < 2)
                 {
                     edgeCells.push_back(adjacentCells.begin()->cell);
                     currentCell = edgeCells.back();
-                    //                    isDone = true;
                     break;
                 }
                 if (adjacentCell->cell->getId() == (edgeCells.end()[-2])->getId())
@@ -342,75 +317,84 @@ public:
                         edgeCells.push_back((adjacentCell + 1)->cell);
                     }
                     currentCell = edgeCells.back();
-                    //                    isDone = true;
                     break;
                 }
-                //                }
             }
 
         } while (currentCell != farRightCell);
         return edgeCells;
-        // BRIM
-//                    double Eps = 10;
-//                    double delta = 0.1;
-//                    std::vector<Cell<T> *> edgeCells;
-//                    for (Cell<T> &p: cells)
-//                    {
-//                        std::vector<Cell<T> *> NEpsOfP = NEps(&p, Eps);
-//                        Cell<T> *o = Attractor(&p, Eps);
-//                        std::vector<double> vecPO = {o->getX() - p.getX(), o->getX() - p.getX()};
-//                        double vecPOMagnitude = sqrt(vecPO[0] * vecPO[0] + vecPO[1] * vecPO[1]);
-//                        int NNEpsOfPSize = 0;
-//                        int PNEpsOfPSize = 0;
-//                        for (Cell<T> *q: NEpsOfP)
-//                        {
-//                            std::vector<double> vecPQ = {q->getX() - p.getX(), q->getX() - p.getX()};
-//                            double vecPQMagnitude = sqrt(vecPQ[0] * vecPQ[0] + vecPQ[1] * vecPQ[1]);
-//                            double angle = acos((vecPO[0] * vecPQ[0] + vecPO[1] * vecPQ[1]) / (vecPOMagnitude * vecPQMagnitude));
-//                            if (angle <= M_PI / 2)
-//                            {
-//                                PNEpsOfPSize++;
-//                            }
-//                            else if (angle <= M_PI)
-//                            {
-//                                NNEpsOfPSize++;
-//                            }
-//                        }
-//                        double BD=0;
-//                        if(NNEpsOfPSize==0){
-//                            BD = delta+1;
-//                        }else{
-//                            BD = PNEpsOfPSize / NNEpsOfPSize * std::abs(PNEpsOfPSize - NNEpsOfPSize);
-//                        }
-//                        if (BD > delta)
-//                        {
-//                            edgeCells.push_back(&p);
-//                        }
-//                    }
-//                    return edgeCells;
     }
-    Cell<T> *Attractor(Cell<T> *p, double Eps)
+    void setAdjacentCells(Cell<T> *cell)
     {
-        std::vector<Cell<T> *> NEpsOfP = NEps(p, Eps);
-        Cell<T> *Attractor = NEpsOfP.front();
-        for (Cell<T> *o: NEpsOfP)
+        for (auto cellTemp = cells.begin(); cellTemp != cells.end(); cellTemp++)
         {
-            if (NEps(Attractor, Eps) <= NEps(o, Eps))
+            if (cellTemp->getId() != cell->getId())
             {
-                Attractor = o;
+                if (distanceBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY()) <= sqrt(2 * pow(spawnDistance, 2)))
+                {
+                    cell->addAdjacentCell(Cell<sf::CircleShape>::adjacentCell(&(*cellTemp), angleBtwTwoPoints(cell->getX(), cell->getY(), cellTemp->getX(), cellTemp->getY())));
+                    cellTemp->addAdjacentCell(Cell<sf::CircleShape>::adjacentCell(&(*cell), angleBtwTwoPoints(cellTemp->getX(), cellTemp->getY(), cell->getX(), cell->getY())));
+                }
             }
         }
-        return Attractor;
     }
-    std::vector<Cell<T> *> NEps(Cell<T> *p, double Eps)
+    std::vector<Cell<T> *> getEdgeCellsAltUpdate()
     {
-        std::vector<Cell<T> *> NEpsOfP;
-        for (Cell<T> &q: cells)
-        {
-            if (distanceBtwTwoPoints(p->getX(), p->getY(), q.getX(), q.getY()) <= Eps)
-                NEpsOfP.push_back(&q);
-        }
-        return NEpsOfP;
+        //        log("\tgetEdgeCellsAltUpdate");
+        std::vector<Cell<T> *> edgeCellsBeg(prevEdgeCells.begin(), prevEdgeCells.begin() + prevIndex - 40);
+        std::vector<Cell<T> *> edgeCellsEnd(prevEdgeCells.begin() + prevIndex + 40, prevEdgeCells.end());
+        std::vector<Cell<T> *> edgeCells;
+        edgeCells.insert(edgeCells.end(), edgeCellsBeg.begin(), edgeCellsBeg.end());
+        Cell<T> *currentCell = edgeCells.back();
+        std::vector<Cell<sf::CircleShape>::adjacentCell> adjacentCells = {};
+        do {
+            if (currentCell->getId() == edgeCellsEnd.front()->getId())
+            {
+                break;
+            }
+            adjacentCells.clear();
+            adjacentCells = currentCell->getAdjacentCells();
+            std::sort(adjacentCells.begin(), adjacentCells.end(), [](Cell<sf::CircleShape>::adjacentCell c1, Cell<sf::CircleShape>::adjacentCell c2)
+                      { return c1.angle < c2.angle; });
+            for (auto adjacentCell = adjacentCells.begin(); adjacentCell < adjacentCells.end(); adjacentCell++)
+            {
+                if (adjacentCells.size() == 1)
+                {
+                    edgeCells.push_back(adjacentCells.back().cell);
+                    currentCell = edgeCells.back();
+                    break;
+                }
+                if (edgeCells.size() < 2)
+                {
+                    edgeCells.push_back(adjacentCells.begin()->cell);
+                    currentCell = edgeCells.back();
+                    break;
+                }
+                if (adjacentCell->cell->getId() == (edgeCells.end()[-2])->getId())
+                {
+                    if (adjacentCell->cell->getId() == adjacentCells.back().cell->getId())
+                    {
+                        edgeCells.push_back(adjacentCells.begin()->cell);
+                    }
+                    else
+                    {
+                        edgeCells.push_back((adjacentCell + 1)->cell);
+                    }
+                    currentCell = edgeCells.back();
+                    break;
+                }
+                if (std::find_if(edgeCells.begin(), edgeCells.end(), [adjacentCell](Cell<T> *cell)
+                                 { return adjacentCell->cell->getId() == cell->getId(); }) == edgeCells.end())
+                {
+                    edgeCells.push_back(adjacentCell->cell);
+                    currentCell = edgeCells.back();
+                    break;
+                }
+            }
+            //        } while (currentCell->getId() != edgeCellsEnd.front()->getId());
+        } while (std::find(edgeCellsEnd.begin(), edgeCellsEnd.end(), currentCell) != edgeCellsEnd.end());
+        edgeCells.insert(edgeCells.end(), edgeCellsEnd.begin(), edgeCellsEnd.end());
+        return edgeCells;
     }
     int getIterationCounter() const
     {
@@ -508,12 +492,11 @@ public:
                     aliveCellsCounter--;
                 }
             }
-            if (iterationCounter % densityOfMeasurements == 0)
-            {
-                std::cout << aliveCellsCounter << "\n";
-                //                std::cout << edgeCells.size() << "\n";
-                saveToFileMeanRadiusOfLivingCells();
-            }
+            //            if (iterationCounter % densityOfMeasurements == 0)
+            //            {
+            //                std::cout << aliveCellsCounter << "\n";
+            //                saveToFileMeanRadiusOfLivingCells();
+            //            }
         }
     }
     void circleUpdateD(int numberOfIteration)
@@ -546,6 +529,7 @@ public:
                     if (!isConflicting)
                     {
                         cells.emplace_back(x, y);
+                        setAdjacentCells(&cells.back());
                         aliveCellsCounter++;
                         break;
                     }
@@ -558,9 +542,7 @@ public:
             }
             if (iterationCounter % densityOfMeasurements == 0)
             {
-                //                std::cout << aliveCellsCounter << "\n";
-                std::cout << edgeCells.size() << "\n";
-                saveToFileMeanRadiusOfLivingCells();
+                saveToFileMeanRadiusOfLivingCells("StaryAlgorytmKomorkiPrzylegajace.csv");
             }
         }
     }
@@ -800,7 +782,6 @@ public:
             }
         }
 
-
         return counter;
     }
     void saveToFileAllSurfaceRoughness()
@@ -877,7 +858,37 @@ public:
         }
         std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
         fout.open(fullPath, std::ios_base::app);
-        fout << getMeanRadiusOfLivingCells() << "\t" << /*getAliveCellsCounter()*/ getEdgeCells().size() << "\n";
+        fout << getMeanRadiusOfLivingCells() << "\t" << getEdgeCells().size() << "\n";
+        //        fout << getMeanRadiusOfLivingCells() << "\t" << getAliveCellsCounter() << "\n";
+        fout.close();
+    }
+    void saveToFileMeanRadiusOfLivingCells(std::string fileName)
+    {
+
+        std::ofstream fout;
+        std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
+        fout.open(fullPath, std::ios_base::app);
+        fout << getMeanRadiusOfLivingCells() << "\t" << getEdgeCells().size() << "\n";
+        //        fout << getMeanRadiusOfLivingCells() << "\t" << getAliveCellsCounter() << "\n";
+        fout.close();
+    }
+    void saveToFileTimeOfRunning(std::string fileName, double duration)
+    {
+
+        std::ofstream fout;
+        std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + fileName;
+        fout.open(fullPath, std::ios_base::app);
+        fout << duration << "\t" << cells.size() << "\n";
+        fout.close();
+    }
+
+    static void log(std::string string)
+    {
+
+        std::ofstream fout;
+        std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "../log";
+        fout.open(fullPath, std::ios_base::app);
+        fout << std::chrono::system_clock::now() << ";\t" << string << "\n";
         fout.close();
     }
 };
