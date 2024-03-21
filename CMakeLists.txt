@@ -12,7 +12,8 @@ FetchContent_MakeAvailable(SFML)
 add_executable(OffLaticeEdenModel src/main.cpp
         src/Surface.h
         src/Cell.h
-        src/CellPrimitive.h)
+        src/CellPrimitive.h
+)
 #        src/PlotsGenerators.cpp)
 target_link_libraries(OffLaticeEdenModel PRIVATE sfml-graphics)
 target_compile_features(OffLaticeEdenModel PRIVATE cxx_std_23)

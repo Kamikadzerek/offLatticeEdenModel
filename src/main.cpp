@@ -6,42 +6,48 @@
 #include <iostream>
 #include <random>
 #define SQUARES false
-extern char VERSION = 'D';
+extern char VERSION = 'C';
+extern bool GROWINGUP = false;
+extern double PROBABILITY = 0.01;
 extern const std::string surfacesPath = std::filesystem::path(std::filesystem::current_path()) /= "Saved/Surfaces";
 extern const std::string dataPath = std::filesystem::path(std::filesystem::current_path()) /= "../../../dane";
 extern const std::string plotsPath = std::filesystem::path(std::filesystem::current_path()) /= "Saved/Plots";
 extern const std::string imagesPath = std::filesystem::path(std::filesystem::current_path()) /= "Saved/Images";
-// Available Models:
-// -Lattice A
-// -Lattice B
-// -Lattice C
-// -Off-Lattice B
-// -Off-Lattice C
-// Model Off-Lattice A is impossible to implementation because we can't explicitly indicate cells adjacent to the cluster.
 extern const int NUMBEROFANGLES = 180;
-int LIMITOFCELLS = 100000;
-int ITERATIONBYONE = 20000;
+extern const int DEADAGE = 500;//interesting: 500,
+int LIMITOFCELLS = 200000;
+int ITERATIONBYONE = 5000;
 //----------------------------------------------------------------
-extern const double WIDTH = 1920 / 2;//1920 / 2;
-extern const double HEIGHT = 1080;   //1080
-extern const sf::Color BACKGROUND_COLOR = sf::Color(249, 219, 189, 255);
-extern const sf::Color ALIVE_COLOR = sf::Color(94, 255, 0, 100);
+extern const double WIDTH = 1920 / 2;
+extern const double HEIGHT = 1080;
+//extern const sf::Color BACKGROUND_COLOR = sf::Color(249, 219, 189, 255);
+//extern const sf::Color ALIVE_COLOR = sf::Color(94, 255, 0, 100);
 extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
-extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
+//extern const sf::Color DEAD_COLOR = sf::Color(248, 24, 24, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
+
+extern const sf::Color BACKGROUND_COLOR = sf::Color(255, 255, 255, 255);
+extern const sf::Color ALIVE_COLOR = sf::Color(0, 0, 0, 185);
+extern const sf::Color DEAD_COLOR = sf::Color(0, 0, 0, 125);
+
 bool DRAWONLYALIVE = false;
 bool DRAWCELLS = true;
-bool DRAWEDGE = true;
-extern const double SIZE = 4;
-extern const double OUTLINETHICNESS = 1;
+bool DRAWEDGE = false;
+extern const double SIZE = 2;
+extern const double OUTLINETHICNESS = 0;
 auto start = std::chrono::high_resolution_clock::now();
 auto stop = std::chrono::high_resolution_clock::now();
 int main(int argc, char *argv[])
 {
+    bool isRunning = false;
+    bool drawGrowNetwork = false;
     bool flag_END_PRINTED = false;
     sf::ContextSettings settings;
     settings.antialiasingLevel = 4;
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default, settings);
+    window.setFramerateLimit(5);
+    sf::RenderTexture renderTexture;
+    renderTexture.create(window.getSize().x, window.getSize().y);
     sf::Event ev;
     sf::Text leftText;
     sf::Text titleText;
@@ -50,6 +56,7 @@ int main(int argc, char *argv[])
     start = std::chrono::high_resolution_clock::now();
     std::cout << "START\n";
     window.clear(BACKGROUND_COLOR);
+    renderTexture.clear(BACKGROUND_COLOR);
     font.loadFromFile("../../src/JetBrainsMono-Bold.ttf");
     leftText.setPosition(0, 0);
     leftText.setFont(font);
@@ -62,7 +69,6 @@ int main(int argc, char *argv[])
 #if SQUARES == true
     Surface<sf::RectangleShape> surface;
 #else
-    //        Surface<sf::CircleShape> surface("Circle200000.csv");
     Surface<sf::CircleShape> surface;
 #endif
     while (window.isOpen())
@@ -88,13 +94,32 @@ int main(int argc, char *argv[])
                     }
                     else if (ev.key.code == sf::Keyboard::S)
                     {
-                        surface.saveToFile();
+                        //                        surface.saveToFile();
+                        sf::Image screenshot = renderTexture.getTexture().copyToImage();
+                        std::string fileName;
+                        if (drawGrowNetwork)
+                        {
+                            fileName = "GrowNetwork" + std::to_string(NUMBEROFANGLES) + ".png";
+                        }
+                        else
+                        {
+                            fileName = "Cluster" + std::to_string(NUMBEROFANGLES) + ".png";
+                        }
+//                        screenshot.saveToFile(fileName);
+                        std::cout<<fileName<<" Saved!\n";
+                    }
+                    else if (ev.key.code == sf::Keyboard::Space)
+                    {
+                        drawGrowNetwork = !drawGrowNetwork;
+                    }
+                    else if(ev.key.code == sf::Keyboard::K){
+                       isRunning = !isRunning;
                     }
                     break;
             }
         }
         //        if (surface.getEdgeCells().size() <= LIMITOFCELLS)
-        if (surface.getCells().size() <= LIMITOFCELLS)
+        if (surface.getCells().size() <= LIMITOFCELLS && isRunning)
         //        if(std::chrono::duration_cast<std::chrono::seconds>(stop - start).count()<100)
         {
             if (SQUARES)
@@ -124,8 +149,18 @@ int main(int argc, char *argv[])
                 }
                 else if (VERSION == 'C')
                 {
-                    titleText.setString("Eden Model Off-lattice Version C");
-                    surface.circleUpdateC(ITERATIONBYONE);
+                    if (drawGrowNetwork)
+                    {
+                        window.clear(BACKGROUND_COLOR);
+                        renderTexture.clear(BACKGROUND_COLOR);
+                        surface.drawGrowNetwork(&window, &renderTexture, surface.getFirstCell());
+                        titleText.setString("Eden Model Off-lattice Version C Grow Network");
+                    }
+                    else
+                    {
+                        titleText.setString("Eden Model Off-lattice Version C");
+                        surface.circleUpdateC(ITERATIONBYONE);
+                    }
                 }
                 else if (VERSION == 'D')
                 {
@@ -134,11 +169,11 @@ int main(int argc, char *argv[])
                 }
             }
             auto duration = std::chrono::duration_cast<std::chrono::seconds>(stop - start);
-//            surface.saveToFileTimeOfRunning("CzasJeszczeZadszePomiaryIWizualizacje.csv", double(duration.count()));
             std::cout << LIMITOFCELLS - surface.getCells().size() << "\n";
         }
         else if (!flag_END_PRINTED)
         {
+//                        surface.saveToFileAllNumberOfCellsEnclosedByRadius("3C200000.csv");
             std::cout << "END\n";
             stop = std::chrono::high_resolution_clock::now();
             auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
@@ -147,40 +182,65 @@ int main(int argc, char *argv[])
         }
         stop = std::chrono::high_resolution_clock::now();
         auto duration = std::chrono::duration_cast<std::chrono::milliseconds>(stop - start);
-        leftText.setString("Iteration: " + std::to_string(surface.getIterationCounter()) + "\n" +
-                           "Alive cells: " + std::to_string(surface.getAliveCellsCounter()) + "\n" +
-                           "All cells: " + std::to_string(surface.getCells().size()) + "\n" +
-                           "Execution time: " + std::to_string(double(duration.count()) / 1000) + "s");
-        window.clear(BACKGROUND_COLOR);
-        window.draw(titleText);
-        window.draw(leftText);
-        if (DRAWONLYALIVE)
+        std::string leftTextStr = "Iteration: " + std::to_string(surface.getIterationCounter()) + "\n" +
+                                  "Alive cells: " + std::to_string(surface.getAliveCellsCounter()) + "\n" +
+                                  "All cells: " + std::to_string(surface.getCells().size()) + "\n" +
+                                  "Execution time: " + std::to_string(double(duration.count()) / 1000) + "s\n";
+        if (GROWINGUP){
+            leftTextStr+="Dead age: "+std::to_string(DEADAGE);
+        }
+        leftText.setString(leftTextStr);
+        if (drawGrowNetwork)
         {
-            for (const auto &cell: surface.getCells())
+            window.clear(BACKGROUND_COLOR);
+            renderTexture.clear(BACKGROUND_COLOR);
+            surface.drawGrowNetwork(&window, &renderTexture, surface.getFirstCell());
+        }
+        if (!drawGrowNetwork)
+        {
+
+            window.clear(BACKGROUND_COLOR);
+            window.draw(titleText);
+            window.draw(leftText);
+            renderTexture.clear(BACKGROUND_COLOR);
+            renderTexture.draw(titleText);
+            renderTexture.draw(leftText);
+            if (DRAWONLYALIVE)
             {
-                if (cell.getStatus())
+                for (const auto &cell: surface.getCells())
+                {
+                    if (cell.getStatus())
+                        window.draw(cell.getDrawable());
+                    renderTexture.draw(cell.getDrawable());
+                }
+            }
+            else if (DRAWCELLS)
+            {
+                for (const auto &cell: surface.getCells())
+                {
                     window.draw(cell.getDrawable());
+                    renderTexture.draw(cell.getDrawable());
+                }
+            }
+            if (DRAWEDGE)
+            {
+                auto edgeCells = surface.getEdgeCells();
+                for (auto *cell: edgeCells)
+                {
+                    cell->setFillColor(sf::Color(100, 100, 100, 255));
+                    window.draw(cell->getDrawable());
+                    renderTexture.draw(cell->getDrawable());
+                }
+                edge = surface.getEstimateEdge(edgeCells);
+                window.draw(edge);
+                renderTexture.draw(edge);
             }
         }
-        else if (DRAWCELLS)
+        else
         {
-            for (const auto &cell: surface.getCells())
-            {
-                window.draw(cell.getDrawable());
-            }
-        }
-        if (DRAWEDGE)
-        {
-            auto edgeCells = surface.getEdgeCells();
-            for (auto *cell: edgeCells)
-            {
-                cell->setFillColor(sf::Color(100, 100, 100, 255));
-                window.draw(cell->getDrawable());
-            }
-            edge = surface.getEstimateEdge(edgeCells);
-            window.draw(edge);
         }
         window.display();
+        renderTexture.display();
     }
     return 0;
 }

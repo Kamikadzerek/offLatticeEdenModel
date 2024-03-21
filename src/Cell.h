@@ -3,6 +3,8 @@
 #include <iostream>
 #include <vector>
 extern const double SIZE;
+extern bool GOODLC;
+extern bool GOODRADIUS;
 template<typename T>
 class Cell
 {
@@ -15,7 +17,17 @@ public:
 
 private:
     std::vector<adjacentCell> adjacentCells;
+    std::vector<Cell<T>*> childCells;
     T drawable;
+    int age = 0;
+
+public:
+    int getAge() const
+    {
+        return age;
+    }
+
+private:
     static inline int counter = 0;
     int id;
     bool status;
@@ -24,6 +36,9 @@ private:
     double size;
 
 public:
+    void growingUp(){
+        age++;
+    }
     Cell(double X, double Y)
     {
         id = counter;
@@ -45,43 +60,49 @@ public:
         }
         else
         {
-            drawable.setRadius(SIZE / 2 - OUTLINETHICNESS/2);
+            drawable.setRadius(SIZE / 2 + OUTLINETHICNESS );
             drawable.setPointCount(100);
         }
     }
-    Cell(double X, double Y, bool Status)
-    {
-        id = counter;
-        counter++;
-        extern const double SIZE;
-        extern const double OUTLINETHICNESS;
-        extern const sf::Color EDGE_COLOR;
-        extern const sf::Color ALIVE_COLOR;
-        extern const sf::Color DEAD_COLOR;
-        status = Status;
-        x = X;
-        y = Y;
-        size = SIZE;
-        drawable.setPosition(sf::Vector2f(x, y));
-        drawable.setOutlineColor(EDGE_COLOR);
-        drawable.setOutlineThickness(OUTLINETHICNESS);
-        if (status)
-        {
-            drawable.setFillColor(ALIVE_COLOR);
-        }
-        else
-        {
-            drawable.setFillColor(DEAD_COLOR);
-        }
-        if constexpr (std::is_same<T, sf::RectangleShape>::value)
-        {
-            drawable.setSize(sf::Vector2f(size - OUTLINETHICNESS / 2, size - OUTLINETHICNESS / 2));
-        }
-        else
-        {
-            drawable.setRadius(size / 2 - OUTLINETHICNESS / 2);
-            drawable.setPointCount(100);
-        }
+    //    Cell(double X, double Y, bool Status)
+    //    {
+    //        id = counter;
+    //        counter++;
+    //        extern const double SIZE;
+    //        extern const double OUTLINETHICNESS;
+    //        extern const sf::Color EDGE_COLOR;
+    //        extern const sf::Color ALIVE_COLOR;
+    //        extern const sf::Color DEAD_COLOR;
+    //        status = Status;
+    //        x = X;
+    //        y = Y;
+    //        size = SIZE;
+    //        drawable.setPosition(sf::Vector2f(x, y));
+    //        drawable.setOutlineColor(EDGE_COLOR);
+    //        drawable.setOutlineThickness(OUTLINETHICNESS);
+    //        if (status)
+    //        {
+    //            drawable.setFillColor(ALIVE_COLOR);
+    //        }
+    //        else
+    //        {
+    //            drawable.setFillColor(DEAD_COLOR);
+    //        }
+    //        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+    //        {
+    //            drawable.setSize(sf::Vector2f(size - OUTLINETHICNESS / 2, size - OUTLINETHICNESS / 2));
+    //        }
+    //        else
+    //        {
+    //            drawable.setRadius(size / 2 - OUTLINETHICNESS / 2);
+    //            drawable.setPointCount(100);
+    //        }
+    //    }
+    void addChildCell(Cell<T>* cell){
+        childCells.push_back(cell);
+    }
+    std::vector<Cell<T>*> getChildCells() const{
+        return childCells;
     }
     void alive()
     {
