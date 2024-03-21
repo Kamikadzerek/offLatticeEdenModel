@@ -16,7 +16,7 @@ extern const std::string imagesPath = std::filesystem::path(std::filesystem::cur
 extern const int NUMBEROFANGLES = 180;
 extern const int DEADAGE = 500;//interesting: 500,
 int LIMITOFCELLS = 200000;
-int ITERATIONBYONE = 5000;
+int ITERATIONBYONE = 1000;
 //----------------------------------------------------------------
 extern const double WIDTH = 1920 / 2;
 extern const double HEIGHT = 1080;
@@ -27,8 +27,8 @@ extern const sf::Color EDGE_COLOR = sf::Color(0, 0, 0, 255);
 extern const sf::Color TEXT_COLOR = sf::Color(0, 0, 0, 255);
 
 extern const sf::Color BACKGROUND_COLOR = sf::Color(255, 255, 255, 255);
-extern const sf::Color ALIVE_COLOR = sf::Color(0, 0, 0, 185);
-extern const sf::Color DEAD_COLOR = sf::Color(0, 0, 0, 125);
+extern const sf::Color ALIVE_COLOR = sf::Color(0, 0, 0, 150);
+extern const sf::Color DEAD_COLOR = sf::Color(0, 0, 0, 100);
 
 bool DRAWONLYALIVE = false;
 bool DRAWCELLS = true;
@@ -45,7 +45,7 @@ int main(int argc, char *argv[])
     sf::ContextSettings settings;
     settings.antialiasingLevel = 4;
     sf::RenderWindow window(sf::VideoMode(WIDTH, HEIGHT), "Eden Model", sf::Style::Default, settings);
-    window.setFramerateLimit(5);
+    window.setFramerateLimit(60);
     sf::RenderTexture renderTexture;
     renderTexture.create(window.getSize().x, window.getSize().y);
     sf::Event ev;
