@@ -13,6 +13,7 @@ add_executable(OffLaticeEdenModel src/main.cpp
         src/Surface.h
         src/Cell.h
         src/CellPrimitive.h
+        src/Surfaces.h
 )
 #        src/PlotsGenerators.cpp)
 target_link_libraries(OffLaticeEdenModel PRIVATE sfml-graphics)

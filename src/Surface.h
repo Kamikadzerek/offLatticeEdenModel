@@ -34,14 +34,6 @@ private:
     {
         double dx, dy;
     };
-    struct coords
-    {
-        double x, y;
-        bool operator<(const coords &coord) const
-        {
-            return (x < coord.x) || ((!(coord.x < x)) && (y < coord.y));
-        }
-    };
     std::vector<Cell<T>> cells;
     unsigned long prevIndex;
     std::vector<Cell<T> *> prevEdgeCells;
@@ -63,31 +55,6 @@ private:
     double spawnDistance = SIZE + 2 * OUTLINETHICNESS;
     double cellRadius = spawnDistance / 2;
     std::string name;
-    bool cellIsConflicting(const CellPrimitive *cell)
-    {
-        if constexpr (std::is_same<T, sf::RectangleShape>::value)
-        {
-            for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
-            {
-                if (squareIsOverSquare(cellTemp, cell))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-        else
-        {
-            for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--)
-            {
-                if (circleIsOverCircle(*cellTemp.base(), *cell))
-                {
-                    return true;
-                }
-            }
-            return false;
-        }
-    }
     bool circleIsOverCircle(const Cell<T> &cell1, const CellPrimitive &cell2) const
     {
         if (std::abs(cell1.getX() - cell2.getX()) < 2 * cellRadius)
@@ -136,6 +103,36 @@ private:
         }
         return bestRadius;
     }
+
+public:
+    void addCell(double x, double y){
+        cells.emplace_back(x,y);
+    }
+    bool cellIsConflicting(const CellPrimitive *cell)
+    {
+        if constexpr (std::is_same<T, sf::RectangleShape>::value)
+        {
+            for (auto cellTemp = cells.end() - 1; cellTemp != cells.begin(); --cellTemp)
+            {
+                if (squareIsOverSquare(cellTemp, cell))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+        else
+        {
+            for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--)
+            {
+                if (circleIsOverCircle(*cellTemp.base(), *cell))
+                {
+                    return true;
+                }
+            }
+            return false;
+        }
+    }
     void resetColors()
     {
         extern const sf::Color ALIVE_COLOR;
@@ -152,8 +149,6 @@ private:
             }
         }
     }
-
-public:
     Surface()
     {
         aliveCellsCounter = 1;
@@ -176,6 +171,30 @@ public:
             name = "Squares" + std::string(1, VERSION);
         }
         cells.emplace_back(initialX, initialY);
+    }
+    Surface(bool empty)
+    {
+        aliveCellsCounter = 1;
+        initialX = WIDTH / 2;
+        initialY = HEIGHT / 2;
+        iterationCounter = 0;
+        cells.reserve(300000);
+
+        if constexpr (std::is_same<T, sf::CircleShape>::value)
+        {
+            extern const int NUMBEROFANGLES;
+            for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / NUMBEROFANGLES)
+            {
+                angles.push_back(angle);
+            }
+            name = "Circles" + std::string(1, VERSION);
+        }
+        else
+        {
+            name = "Squares" + std::string(1, VERSION);
+        }
+        if (!empty)
+            cells.emplace_back(initialX, initialY);
     }
     explicit Surface(std::string path)
     {
@@ -223,6 +242,14 @@ public:
             if (status) { aliveCellsCounter++; }
         }
     }
+    struct coords
+    {
+        double x, y;
+        bool operator<(const coords &coord) const
+        {
+            return (x < coord.x) || ((!(coord.x < x)) && (y < coord.y));
+        }
+    };
     void printCellInfoByClick(double x, double y)
     {
         double cellCenterX;
@@ -521,25 +548,82 @@ public:
                     aliveCellsCounter--;
                 }
             }
-            if (iterationCounter % densityOfMeasurements == 0)
+            //            if (iterationCounter % densityOfMeasurements == 0)
+            //            {
+            //                                saveToFileCenterOfMass("CoM.csv");
+            //                currentMeanRadius = getMeanRadiusOfLivingCells();
+            //                if (currentMeanRadius > lastMeanRadius)
+            //                {
+            //                    currentMeanRadius = lastMeanRadius;
+            //                                    saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("4dsa.csv");
+            //                                    saveToFileMaxRadiusSquareOfLivingCellsNumOfLivingCells("DensityLiving.csv");
+            //                                    saveToFileLivingPerRadius("LivingPerRadius.csv");
+            //                                    saveToFileLivingPerRadiusTime("LivingPerRadiusTime.csv");
+            //                                    saveToFileSDMax("5SDLivLivLivMax.csv");
+            //                                    saveToFileSDMean("5SDLivLivLivMean.csv");
+            //                }
+            //            }
+            if (GROWINGUP)
             {
-                //                saveToFileCenterOfMass("CoM.csv");
-                currentMeanRadius = getMeanRadiusOfLivingCells();
-                if (currentMeanRadius > lastMeanRadius)
+                growingUp();
+            }
+        }
+    }
+    coords circleUpdateC()
+    {
+        if (cells.size() > 0)
+        {
+            bool isNewCell = false;
+            iterationCounter++;
+            unsigned long index = rand() % cells.size();
+            auto *cell = &cells[index];
+            while (!cell->getStatus())
+            {
+                index = rand() % cells.size();
+                cell = &cells[index];
+            }
+            if (cell->getStatus())
+            {
+                bool isConflicting;
+                std::shuffle(angles.begin(), angles.end(), std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
+                for (const double &angle: angles)
                 {
-                    currentMeanRadius = lastMeanRadius;
-                    //                saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("4dsa.csv");
-                    //                saveToFileMaxRadiusSquareOfLivingCellsNumOfLivingCells("DensityLiving.csv");
-                    //                saveToFileLivingPerRadius("LivingPerRadius.csv");
-                    //                saveToFileLivingPerRadiusTime("LivingPerRadiusTime.csv");
-                    //                saveToFileSDMax("5SDLivLivLivMax.csv");
-                    //                saveToFileSDMean("5SDLivLivLivMean.csv");
+                    double x = cell->getX() + spawnDistance * cos(angle);
+                    double y = cell->getY() + spawnDistance * sin(angle);
+                    isConflicting = cellIsConflicting(new const CellPrimitive(x, y));
+                    if (!isConflicting)
+                    {
+                        cells.emplace_back(x, y);
+                        cell->addChildCell(&cells.back());
+                        setAdjacentCells(&cells.back());
+                        aliveCellsCounter++;
+                        isNewCell=true;
+                        break;
+                    }
+                }
+                if (isConflicting)
+                {
+                    cell->death();
+                    aliveCellsCounter--;
+                    isNewCell = false;
                 }
             }
             if (GROWINGUP)
             {
                 growingUp();
             }
+            if (isNewCell)
+            {
+                return coords(0, 0);
+            }
+            else
+            {
+                return coords(cell->getX(), cell->getY());
+            }
+        }
+        else
+        {
+            return coords(9999, 9999);
         }
     }
     void circleUpdateD(int numberOfIteration)
@@ -553,7 +637,7 @@ public:
             iterationCounter++;
             for (Cell<T> &cell: cells)
             {
-                if (cell.getStatus() && rand()%1000<PROBABILITY*1000)
+                if (cell.getStatus() && rand() % 1000 < PROBABILITY * 1000)
                 {
                     bool isConflicting;
                     std::shuffle(angles.begin(), angles.end(), std::default_random_engine(std::chrono::system_clock::now().time_since_epoch().count()));
@@ -578,15 +662,15 @@ public:
                     }
                 }
             }
-            if (iterationCounter % densityOfMeasurements == 0)
-            {
-                //                saveToFileCenterOfMass("CoM.csv");
-                currentMeanRadius = getMeanRadiusOfLivingCells();
-                if (currentMeanRadius > lastMeanRadius)
-                {
-                    currentMeanRadius = lastMeanRadius;
-                }
-            }
+            //            if (iterationCounter % densityOfMeasurements == 0)
+            //            {
+            //                                saveToFileCenterOfMass("CoM.csv");
+            //                currentMeanRadius = getMeanRadiusOfLivingCells();
+            //                if (currentMeanRadius > lastMeanRadius)
+            //                {
+            //                    currentMeanRadius = lastMeanRadius;
+            //                }
+            //            }
             if (GROWINGUP)
             {
                 growingUp();
@@ -700,30 +784,19 @@ public:
             //            saveToFileMeanRadiusOfLivingCells();
         }
     }
-    void drawGrowNetwork(sf::RenderWindow *window, sf::RenderTexture *renderTexture, const Cell<T> *cell)
+    void drawGrowNetwork(sf::RenderWindow *window, sf::RenderTexture *renderTexture, const Cell<T> *cell) const
     {
-        std::cout << "Start\n";
-        //        sf::Vector2f center = getCenterOfMass();
-        //        double maxRadius = getMaxRadius();
-        //        double cellDistance = distanceBtwTwoPoints(cell->getX(), cell->getY(), center.x, center.y);
-        //        int cellColor = 255.0 * cellDistance/maxRadius;
         for (Cell<T> *child: cell->getChildCells())
         {
-            //            double childDistance = distanceBtwTwoPoints(cell->getX(), cell->getY(), center.x, center.y);
-            //            int childColor = 255.0 * childDistance/maxRadius;
             sf::Vertex line[] = {
                     sf::Vertex(sf::Vector2f(cell->getX() + cellRadius, cell->getY() + cellRadius)),
                     sf::Vertex(sf::Vector2f(child->getX() + cellRadius, child->getY() + cellRadius))};
-
-            //            line[0].color=sf::Color(255,255, cellColor);
-            //            line[1].color = sf::Color(255, 255, childColor);
             line[0].color = sf::Color::Black;
             line[1].color = sf::Color::Black;
             window->draw(line, 2, sf::Lines);
             renderTexture->draw(line, 2, sf::Lines);
             drawGrowNetwork(window, renderTexture, child);
         }
-        std::cout << "End\n";
     }
     double getMaxRadiusFromLiving()
     {
