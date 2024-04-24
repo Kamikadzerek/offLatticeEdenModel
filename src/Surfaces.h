@@ -20,7 +20,7 @@ private:
 public:
     Surfaces()
     {
-        surfaces.reserve(200);
+//        surfaces.reserve(200);
         for (int i = 0; i < NUMBEROFLAYERS; i++)
         {
             if (i != NUMBEROFLAYERS / 2)
@@ -72,7 +72,7 @@ public:
             }
         }
     }
-    const std::vector<Surface<sf::CircleShape>> &getSurfaces() const
+    std::vector<Surface<sf::CircleShape>> &getSurfaces()
     {
         return surfaces;
     }
