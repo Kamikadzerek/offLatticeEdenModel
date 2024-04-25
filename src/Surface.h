@@ -1,5 +1,3 @@
-#include <SFML/Graphics.hpp>
-#include <SFML/Window.hpp>
 #include <chrono>
 #include <cmath>
 #include <filesystem>
@@ -9,14 +7,14 @@
 #include "Cell.h"
 #include "CellPrimitive.h"
 extern const std::string dataPath;
-extern const double WIDTH;
-extern const double HEIGHT;
 extern const double SIZE;
-extern const double OUTLINETHICNESS;
-extern const int NUMBEROFANGLES;
 class Surface// store all cells
 {
   private:
+  struct Vector2f {
+    double x;
+    double y;
+  };
   struct path {
     double x;
     double y;
@@ -29,7 +27,7 @@ class Surface// store all cells
   int id;
   int iterationCounter;
   int aliveCellsCounter;
-  double spawnDistance = SIZE + 2 * OUTLINETHICNESS;
+  double spawnDistance = SIZE;
   double cellRadius = spawnDistance / 2;
   std::random_device rd;
   std::mt19937 gen;
@@ -54,22 +52,11 @@ class Surface// store all cells
     }
     return false;
   }
-  void resetColors() {
-    extern const sf::Color ALIVE_COLOR;
-    extern const sf::Color DEAD_COLOR;
-    for (auto cell = cells.begin(); cell != cells.end(); cell++) {
-      if (cell->getStatus()) {
-        cell->setFillColor(ALIVE_COLOR);
-      } else {
-        cell->setFillColor(DEAD_COLOR);
-      }
-    }
-  }
-  Surface(int i):id(i){
+  Surface(int i) : id(i) {
     gen = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
     aliveCellsCounter = 1;
-    initialX = WIDTH / 2;
-    initialY = HEIGHT / 2;
+    initialX = 0;
+    initialY = 0;
     iterationCounter = 0;
     cells.reserve(300000);
     extern const int NUMBEROFANGLES;
@@ -78,7 +65,7 @@ class Surface// store all cells
     }
     cells.emplace_back(initialX, initialY);
   }
-  sf::Vector2f getCenterOfMassFromLiving() {
+  Vector2f getCenterOfMassFromLiving() {
     double sumX = 0;
     double sumY = 0;
     int counter = 0;
@@ -89,26 +76,16 @@ class Surface// store all cells
         sumY += cell.getY();
       }
     }
-    return sf::Vector2f(sumX / counter, sumY / counter);
+    return Vector2f(sumX / counter, sumY / counter);
   }
-  sf::Vector2f getCenterOfMassFromAll() {
+  Vector2f getCenterOfMassFromAll() {
     double sumX = 0;
     double sumY = 0;
     for (const Cell &cell : cells) {
       sumX += cell.getX();
       sumY += cell.getY();
     }
-    return sf::Vector2f(sumX / cells.size(), sumY / cells.size());
-  }
-  sf::CircleShape getEstimateEdge() {
-    sf::CircleShape edge;
-    edge.setPosition(getCenterOfMassFromAll());
-    edge.setFillColor(sf::Color(0, 0, 0, 0));
-    edge.setOutlineThickness(2);
-    edge.setOutlineColor(sf::Color(0, 0, 0, 100));
-    edge.setRadius(getMeanRadiusOfLivingCells() * 2 * cellRadius);
-    edge.move(-edge.getRadius(), -edge.getRadius());
-    return edge;
+    return Vector2f(sumX / cells.size(), sumY / cells.size());
   }
   int getNumberOfCells() { return cells.size(); }
   int getIterationCounter() const { return iterationCounter; }
@@ -121,7 +98,6 @@ class Surface// store all cells
     int densityOfMeasurements = 500;
     double lastMeanRadius = 0;
     double currentMeanRadius = 0;
-    resetColors();
     for (int i = 0; i < numberOfIteration; i++) {
       iterationCounter++;
       unsigned long index = gen() % cells.size();
@@ -148,14 +124,14 @@ class Surface// store all cells
           aliveCellsCounter--;
         }
       }
-      if (iterationCounter % densityOfMeasurements == 0) {
-        currentMeanRadius = getMeanRadiusOfLivingCells();
-        if (currentMeanRadius > lastMeanRadius) {
-          currentMeanRadius = lastMeanRadius;
-          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id"+std::to_string(id)+".csv");
-          saveToFileSDMean("Id"+std::to_string(id)+".csv");
-        }
-      }
+      //      if (iterationCounter % densityOfMeasurements == 0) {
+      //        currentMeanRadius = getMeanRadiusOfLivingCells();
+      //        if (currentMeanRadius > lastMeanRadius) {
+      //          currentMeanRadius = lastMeanRadius;
+      //          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id"+std::to_string(id)+".csv");
+      //          saveToFileSDMean("Id"+std::to_string(id)+".csv");
+      //        }
+      //      }
     }
   }
   void clear() {
@@ -171,7 +147,7 @@ class Surface// store all cells
   double getMeanRadiusOfLivingCells() {
     int counter = 0;
     double sum = 0;
-    const sf::Vector2f center = getCenterOfMassFromLiving();
+    const Vector2f center = getCenterOfMassFromLiving();
     for (const Cell cell : cells) {
       if (cell.getStatus()) {
         counter++;
@@ -182,7 +158,7 @@ class Surface// store all cells
   }
   int getNumberOfCellsEnclosedByRadius(double radius) {
     int counter = 0;
-    sf::Vector2f center = getCenterOfMassFromLiving();
+    Vector2f center = getCenterOfMassFromLiving();
     for (const Cell cell : cells) {
       if (distanceBtwTwoPoints(center.x, center.y, cell.getX(), cell.getY()) <= radius) {
         counter++;
@@ -195,15 +171,15 @@ class Surface// store all cells
     std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "Fig3/" + fileName;
     fout.open(fullPath);
     fout << getIterationCounter() << std::endl;// saving to file iteratorCounter
-    double R = getEstimateEdge().getRadius() + 400;
+    double R = getMeanRadiusOfLivingCells() + 400;
     double step = 5;
-//    std::cout << "Saving data start!\n";
+    //    std::cout << "Saving data start!\n";
     for (double r = step; r <= R; r += step) {
       fout << std::pow(r / cellRadius, 2) << "\t" << getNumberOfCellsEnclosedByRadius(r) << "\n";
     }
     fout.close();
-//    std::cout << "Data saved to: "
-//              << "\"" << fullPath << "\"\n";
+    //    std::cout << "Data saved to: "
+    //              << "\"" << fullPath << "\"\n";
   }
   void saveToFileMeanRadiusOfLivingCellsNumOfLivingCells(std::string fileName) {
     std::ofstream fout;
@@ -214,7 +190,7 @@ class Surface// store all cells
   }
   double getSD() {
     double meanRadius = getMeanRadiusOfLivingCells();
-    const sf::Vector2f center = getCenterOfMassFromLiving();
+    const Vector2f center = getCenterOfMassFromLiving();
     std::vector<double> deviations;
     for (const Cell cell : cells) {
       if (cell.getStatus()) {
