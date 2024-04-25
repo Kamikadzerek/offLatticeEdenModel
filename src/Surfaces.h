@@ -44,7 +44,7 @@ public:
             //            for (auto &surface: surfaces)
             for (auto surface = surfaces.begin(); surface != surfaces.end(); surface++)
             {
-                auto coord = surface->circleUpdateC();
+                auto coord = surface->update();
                 if (coord.x == 0 && coord.y == 0)
                 {
                     allCellsCounter++;
