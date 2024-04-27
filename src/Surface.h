@@ -11,16 +11,11 @@ extern const double SIZE;
 class Surface// store all cells
 {
   private:
-  struct Vector2f {
-    double x;
-    double y;
-  };
-  struct path {
+  struct vector2d {
     double x;
     double y;
   };
   std::vector<Cell> cells;
-  std::vector<Cell *> prevEdgeCells;
   std::vector<double> angles;
   double initialX;
   double initialY;
@@ -43,6 +38,7 @@ class Surface// store all cells
   public:
   void addCell(double x, double y) {
     cells.emplace_back(x, y);
+    aliveCellsCounter++;
   }
   bool cellIsConflicting(const CellPrimitive *cell) {
     for (auto cellTemp = cells.end(); cellTemp > cells.begin() - 1; cellTemp--) {
@@ -65,7 +61,11 @@ class Surface// store all cells
     }
     cells.emplace_back(initialX, initialY);
   }
-  Vector2f getCenterOfMassFromLiving() {
+  ~Surface() {
+      cells.clear();
+
+  }
+  vector2d getCenterOfMassFromLiving() {
     double sumX = 0;
     double sumY = 0;
     int counter = 0;
@@ -76,26 +76,14 @@ class Surface// store all cells
         sumY += cell.getY();
       }
     }
-    return Vector2f(sumX / counter, sumY / counter);
-  }
-  Vector2f getCenterOfMassFromAll() {
-    double sumX = 0;
-    double sumY = 0;
-    for (const Cell &cell : cells) {
-      sumX += cell.getX();
-      sumY += cell.getY();
-    }
-    return Vector2f(sumX / cells.size(), sumY / cells.size());
+    return vector2d(sumX / counter, sumY / counter);
   }
   int getNumberOfCells() { return cells.size(); }
   int getIterationCounter() const { return iterationCounter; }
   int getAliveCellsCounter() const { return aliveCellsCounter; }
   const std::vector<Cell> &getCells() const { return cells; }
-  void update(int numberOfIteration)
-  // In version C, firstly a alive cell of the cluster is randomly chosen,
-  // then an uninfected adjacent cell is randomly chosen to be infected.
-  {
-    int densityOfMeasurements = 500;
+  void update(int numberOfIteration) {
+    int densityOfMeasurements = 100;
     double lastMeanRadius = 0;
     double currentMeanRadius = 0;
     for (int i = 0; i < numberOfIteration; i++) {
@@ -114,8 +102,7 @@ class Surface// store all cells
           double y = cell->getY() + spawnDistance * sin(angle);
           isConflicting = cellIsConflicting(new const CellPrimitive(x, y));
           if (!isConflicting) {
-            cells.emplace_back(x, y);
-            aliveCellsCounter++;
+            addCell(x,y);
             break;
           }
         }
@@ -124,14 +111,14 @@ class Surface// store all cells
           aliveCellsCounter--;
         }
       }
-      //      if (iterationCounter % densityOfMeasurements == 0) {
-      //        currentMeanRadius = getMeanRadiusOfLivingCells();
-      //        if (currentMeanRadius > lastMeanRadius) {
-      //          currentMeanRadius = lastMeanRadius;
-      //          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id"+std::to_string(id)+".csv");
-      //          saveToFileSDMean("Id"+std::to_string(id)+".csv");
-      //        }
-      //      }
+//            if (iterationCounter % densityOfMeasurements == 0) {
+//              currentMeanRadius = getMeanRadiusOfLivingCells();
+//              if (currentMeanRadius > lastMeanRadius+2) {
+//                lastMeanRadius = currentMeanRadius;
+//                saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id"+std::to_string(id)+".csv");
+//                saveToFileSDMean("Id"+std::to_string(id)+".csv");
+//              }
+//            }
     }
   }
   void clear() {
@@ -147,7 +134,7 @@ class Surface// store all cells
   double getMeanRadiusOfLivingCells() {
     int counter = 0;
     double sum = 0;
-    const Vector2f center = getCenterOfMassFromLiving();
+    const vector2d center = getCenterOfMassFromLiving();
     for (const Cell cell : cells) {
       if (cell.getStatus()) {
         counter++;
@@ -158,7 +145,7 @@ class Surface// store all cells
   }
   int getNumberOfCellsEnclosedByRadius(double radius) {
     int counter = 0;
-    Vector2f center = getCenterOfMassFromLiving();
+    vector2d center = getCenterOfMassFromLiving();
     for (const Cell cell : cells) {
       if (distanceBtwTwoPoints(center.x, center.y, cell.getX(), cell.getY()) <= radius) {
         counter++;
@@ -170,7 +157,6 @@ class Surface// store all cells
     std::ofstream fout;
     std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "Fig3/" + fileName;
     fout.open(fullPath);
-    fout << getIterationCounter() << std::endl;// saving to file iteratorCounter
     double R = getMeanRadiusOfLivingCells() + 400;
     double step = 5;
     //    std::cout << "Saving data start!\n";
@@ -190,7 +176,7 @@ class Surface// store all cells
   }
   double getSD() {
     double meanRadius = getMeanRadiusOfLivingCells();
-    const Vector2f center = getCenterOfMassFromLiving();
+    const vector2d center = getCenterOfMassFromLiving();
     std::vector<double> deviations;
     for (const Cell cell : cells) {
       if (cell.getStatus()) {
@@ -208,11 +194,7 @@ class Surface// store all cells
     std::ofstream fout;
     std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "Fig5/" + fileName;
     fout.open(fullPath, std::ios_base::app);
-    fout << getMeanRadiusOfLivingCells() / cellRadius * 2 << "\t" << getSD() << "\n";
+    fout << getMeanRadiusOfLivingCells() / cellRadius << "\t" << getSD() << "\n";       // !!!!!!!!!!!!!!!!!!! NA CHUJ MNOŻYSZ RAZY DWA??? !!!!!!!!!!!!!!!!!!!!!!!!!!!!!
     fout.close();
   }
 };
-// mierzenien środka od wszystkich albo tylko żywych
-//  grow network
-//  wyznacznie promienia
-//  co powoduje fluktuacje w SD
