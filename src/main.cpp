@@ -11,7 +11,7 @@ int ITERATIONBYONE = 10000;
 extern const double SIZE = 1;
 int main(int argc, char *argv[]) {
   //  for (int i = atoi(argv[1]); i < atoi(argv[2]); i++) {
-  for (int i = 0; i < 10; i++) {
+  for (int i = 0; i < 20; i++) {
     Surface surface(i);
     double numberOfCells = surface.getNumberOfCells();
     while (numberOfCells <= LIMITOFCELLS) {
