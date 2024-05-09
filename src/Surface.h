@@ -5,13 +5,39 @@
 #include <random>
 #include <vector>
 #include "Cell.h"
-#include "CellPrimitive.h"
 #include "octree.h"
-extern const std::string dataPath;
-extern const double SIZE;
+extern const double MAXRADIUS;
 class Surface// store all cells
 {
   private:
+  std::vector<std::vector<int>> conflictQueue = {
+      std::vector<int>({0, 0, 0}),
+      std::vector<int>({1, 0, 0}),
+      std::vector<int>({-1, 0, 0}),
+      std::vector<int>({0, 1, 0}),
+      std::vector<int>({0, -1, 0}),
+      std::vector<int>({0, 0, 1}),
+      std::vector<int>({0, 0, -1}),
+      std::vector<int>({1, 1, 0}),
+      std::vector<int>({1, -1, 0}),
+      std::vector<int>({1, 0, 1}),
+      std::vector<int>({1, 0, -1}),
+      std::vector<int>({-1, 1, 0}),
+      std::vector<int>({-1, -1, 0}),
+      std::vector<int>({-1, 0, 1}),
+      std::vector<int>({-1, 0, -1}),
+      std::vector<int>({0, 1, 1}),
+      std::vector<int>({0, 1, -1}),
+      std::vector<int>({0, -1, 1}),
+      std::vector<int>({0, -1, -1}),
+      std::vector<int>({1, 1, 1}),
+      std::vector<int>({1, 1, -1}),
+      std::vector<int>({1, -1, 1}),
+      std::vector<int>({1, -1, -1}),
+      std::vector<int>({-1, 1, 1}),
+      std::vector<int>({-1, 1, -1}),
+      std::vector<int>({-1, -1, 1}),
+      std::vector<int>({-1, -1, -1})};
   Octree<std::vector<Cell *>> tree = Octree<std::vector<Cell *>>(4096);
   int densityOfMeasurements = 100;
   double lastMeanRadius = 0;
@@ -31,13 +57,16 @@ class Surface// store all cells
   double initialY = 0;
   double initialZ = 0;
   int id;
+  int numOfAngles;
+  int stateCounter = 0;
   int iterationCounter = 0;
   int aliveCellsCounter;
-  double spawnDistance = SIZE;
+  double thickness;
+  double spawnDistance = 1;
   double cellRadius = spawnDistance / 2;
   std::random_device rd;
   std::mt19937 gen;
-  bool circleIsOverCircle(const Cell &cell1, const Cell cell2) const {
+  [[nodiscard]] bool circleIsOverCircle(const Cell &cell1, const Cell cell2) const {
     if (std::abs(cell1.getX() - cell2.getX()) < 2 * cellRadius) {
       if (std::abs(cell1.getY() - cell2.getY()) < 2 * cellRadius) {
         if (dstBtw2Pts(cell1, cell2) < 2 * cellRadius) {
@@ -49,13 +78,13 @@ class Surface// store all cells
   }
 
   public:
-  Surface(int i) : id(i) {
+  explicit Surface(int i, int numberOfAngles, double thick) : id(i), numOfAngles(numberOfAngles), thickness(thick) {
     extern const double LIMITOFCELLS;
-    extern const int NUMBEROFANGLES;
+    extern const int ITERATIONBYONE;
     gen = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
     aliveCellsCounter = 1;
-    cells.reserve(LIMITOFCELLS + 200);
-    for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / NUMBEROFANGLES) {
+    cells.reserve(pow(MAXRADIUS / cellRadius, 2) * (thickness + 1) + 2 * ITERATIONBYONE);
+    for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / numOfAngles) {
       angles.emplace_back(sin(angle), cos(angle));
     }
     addCell(initialX, initialY, initialZ);
@@ -67,11 +96,11 @@ class Surface// store all cells
     cells.emplace_back(x, y, z);
     aliveCells.emplace_back(&cells.back());
     aliveCellsCounter++;
-    if (tree(x + 2048, y + 2048, z + 2048) != tree.emptyValue()) {
-      tree(x + 2048, y + 2048, z + 2048).push_back(&cells.back());
+    if (tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048) != tree.emptyValue()) {
+      tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048).push_back(&cells.back());
     } else {
-      tree(x + 2048, y + 2048, z + 2048) = std::vector<Cell *>();
-      tree(x + 2048, y + 2048, z + 2048).push_back(&cells.back());
+      tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048) = std::vector<Cell *>();
+      tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048).push_back(&cells.back());
     }
   }
   void deadCell(Cell *c) {
@@ -80,25 +109,17 @@ class Surface// store all cells
     if (it != aliveCells.end()) {
       std::swap(*it, aliveCells.back());
       aliveCells.pop_back();
-    } else {
-      std::cout << "No element in vector\n";
     }
     aliveCellsCounter--;
   }
   bool cellIsConflicting(const Cell cell) {
-    int x = int(cell.getX()) + 2048;
-    int y = int(cell.getY()) + 2048;
-    int z = int(cell.getZ()) + 2048;
-    for (int i = x - 1; i <= x + 1; i++) {
-      for (int j = y - 1; j <= y + 1; j++) {
-        for (int k = z - 1; k <= z + 1; k++) {
-          if (!tree(i, j, k).empty()) {
-            for (auto cellTemp : tree(i, j, k)) {
-              if (circleIsOverCircle(*cellTemp, cell)) {
-                return true;
-              }
-            }
-          }
+    int x = std::floor(cell.getX()) + 2048;
+    int y = std::floor(cell.getY()) + 2048;
+    int z = std::floor(cell.getZ()) + 2048;
+    for (auto dir : conflictQueue) {
+      for (auto const cellTemp : tree(x + dir[0], y + dir[1], z + dir[2])) {
+        if (circleIsOverCircle(*cellTemp, cell)) {
+          return true;
         }
       }
     }
@@ -116,7 +137,7 @@ class Surface// store all cells
     return vector2d(sumX / counter, sumY / counter);
   }
   int getNumberOfCells() { return cells.size(); }
-  int getAliveCellsCounter() const { return aliveCellsCounter; }
+  [[maybe_unused]] [[nodiscard]] int getAliveCellsCounter() const { return aliveCellsCounter; }
   void update(int numberOfIteration) {
     for (int i = 0; i < numberOfIteration; i++) {
       iterationCounter++;
@@ -124,25 +145,42 @@ class Surface// store all cells
       Cell *cell = aliveCells[index];
       if (cell->getStatus()) {
         bool isConflicting;
-        std::shuffle(angles.begin(), angles.end(), gen);
-        auto theta = angles;
-        std::shuffle(angles.begin(), angles.end(), gen);
-        auto phi = angles;
-        for (const angle &angle1 : theta) {
-          for (const angle &angle2 : phi) {
-            double z = cell->getZ() + spawnDistance * angle1.sin;
-            isConflicting = z > SIZE * 5 || z < -SIZE * 5;
-            if (!isConflicting) {
-              double x = cell->getX() + spawnDistance * angle1.cos * angle2.cos;
-              double y = cell->getY() + spawnDistance * angle1.cos * angle2.sin;
-              isConflicting = cellIsConflicting(Cell(x, y, z));
+        if (thickness > 1) {
+          // 3D VERSION -------------------------------------------------
+          std::shuffle(angles.begin(), angles.end(), gen);
+          auto theta = angles;
+          std::shuffle(angles.begin(), angles.end(), gen);
+          auto phi = angles;
+          for (const angle &angle1 : theta) {
+            for (const angle &angle2 : phi) {
+              double z = cell->getZ() + angle1.sin;
+              isConflicting = z > thickness / 2 || z < -thickness / 2;
               if (!isConflicting) {
-                addCell(x, y, z);
-                break;
+                double x = cell->getX() + angle1.cos * angle2.cos;
+                double y = cell->getY() + angle1.cos * angle2.sin;
+                isConflicting = cellIsConflicting(Cell(x, y, z));
+                if (!isConflicting) {
+                  addCell(x, y, z);
+                  break;
+                }
               }
             }
           }
+        } else {
+          // 2D VERSION -------------------------------------------------
+          std::shuffle(angles.begin(), angles.end(), gen);
+          for (const angle &angle : angles) {
+            double x = cell->getX() + angle.cos;
+            double y = cell->getY() + angle.sin;
+            double z = 0;
+            isConflicting = cellIsConflicting(Cell(x, y, z));
+            if (!isConflicting) {
+              addCell(x, y, z);
+              break;
+            }
+          }
         }
+        // COMMON PART -------------------------------------------------
         if (isConflicting) {
           deadCell(cell);
         }
@@ -151,8 +189,9 @@ class Surface// store all cells
         currentMeanRadius = getMeanRadiusOfLivingCells();
         if (currentMeanRadius > lastMeanRadius + 2) {
           lastMeanRadius = currentMeanRadius;
-          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id" + std::to_string(id) + ".csv");
-          saveToFileSDMean("Id" + std::to_string(id) + ".csv");
+          //          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id" + std::to_string(id) + ".csv");
+          //          saveToFileSDMean("Id" + std::to_string(id) + ".csv");
+          //          saveToFile("Id" + std::to_string(id) + "_" + std::to_string(stateCounter++) + ".csv");
         }
       }
     }
@@ -186,20 +225,20 @@ class Surface// store all cells
     }
     return counter;
   }
-  void saveToFileAllNumberOfCellsEnclosedByRadius(std::string fileName) {
+  [[maybe_unused]] void saveToFileAllNumberOfCellsEnclosedByRadius(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "3D/Fig3/" + fileName;
+    std::string fullPath = std::to_string(thickness) + "Thickness/Density/" + fileName;
     fout.open(fullPath);
-    double R = getMeanRadiusOfLivingCells() + 400;
+    double R = getMeanRadiusOfLivingCells() + 100;
     double step = 5;
     for (double r = step; r <= R; r += step) {
       fout << std::pow(r / cellRadius, 2) << "\t" << getNumberOfCellsEnclosedByRadius(r) << "\n";
     }
     fout.close();
   }
-  void saveToFileMeanRadiusOfLivingCellsNumOfLivingCells(std::string fileName) {
+  [[maybe_unused]] void saveToFileMeanRadiusOfLivingCellsNumOfLivingCells(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "3D/Fig4/" + fileName;
+    std::string fullPath = std::to_string(thickness) + "Thickness/Growth/" + fileName;
     fout.open(fullPath, std::ios_base::app);
     fout << 2 * getMeanRadiusOfLivingCells() / cellRadius << "\t" << aliveCellsCounter << "\n";// poprawka błąd w pracy
     fout.close();
@@ -218,16 +257,16 @@ class Surface// store all cells
     variance /= deviations.size();
     return sqrt(variance) / cellRadius;
   }
-  void saveToFileSDMean(std::string fileName) {
+  void saveToFileSDMean(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "3D/Fig5/" + fileName;
+    std::string fullPath = std::to_string(thickness) + "Thickness/SD/" + fileName;
     fout.open(fullPath, std::ios_base::app);
     fout << getMeanRadiusOfLivingCells() / cellRadius << "\t" << getSD() << "\n";
     fout.close();
   }
-  void saveToFile(std::string fileName) {
+  [[maybe_unused]] void saveToFile(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = dataPath + (dataPath.back() != '/' ? "/" : "") + "3D/Spaces/" + fileName;
+    std::string fullPath = std::to_string(thickness) + "Thickness/Spaces/" + fileName;
     fout.open(fullPath);
     for (auto const cell : cells) {
       fout << cell.getX() * 10 << "\t" << cell.getY() * 10 << "\t" << cell.getZ() * 10 << "\t";
