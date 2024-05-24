@@ -9,12 +9,12 @@ add_executable(OffLaticeEdenModel src/main.cpp
         src/Surface.h
         src/Cell.h
 )
-target_compile_features(OffLaticeEdenModel PRIVATE cxx_std_23)
+target_compile_features(OffLaticeEdenModel PRIVATE cxx_std_14)
 
 
 if (CMAKE_CXX_COMPILER_VERSION VERSION_GREATER_EQUAL 8.0)
-    set(CMAKE_CXX20_STANDARD_COMPILE_OPTION "-std=c++2a")
-    set(CMAKE_CXX20_EXTENSION_COMPILE_OPTION "-std=gnu++2a")
+    set(CMAKE_CXX20_STANDARD_COMPILE_OPTION "-std=c++14")
+    set(CMAKE_CXX20_EXTENSION_COMPILE_OPTION "-std=gnu++14")
 endif ()
 
 install(TARGETS OffLaticeEdenModel)

@@ -1,14 +1,105 @@
 #include <chrono>
 #include <cmath>
-#include <filesystem>
 #include <fstream>
 #include <random>
 #include <vector>
 #include "Cell.h"
-#include "octree.h"
-extern const double MAXRADIUS;
+extern const float MAXRADIUS;
+extern const int ITERATIONBYONE;
 class Surface// store all cells
 {
+  template<typename _IntType, typename _UniformRandomBitGenerator>
+  std::pair<_IntType, _IntType>
+  __gen_two_uniform_ints(_IntType __b0, _IntType __b1,
+                         _UniformRandomBitGenerator&& __g)
+  {
+    _IntType __x
+        = std::uniform_int_distribution<_IntType>{0, (__b0 * __b1) - 1}(__g);
+    return std::make_pair(__x / __b1, __x % __b1);
+  }
+
+  template<typename _RandomAccessIterator,
+      typename _UniformRandomNumberGenerator>
+  void
+  shuffle(_RandomAccessIterator __first, _RandomAccessIterator __last,
+          _UniformRandomNumberGenerator&& __g)
+  {
+    // concept requirements
+    __glibcxx_function_requires(_Mutable_RandomAccessIteratorConcept<
+                                _RandomAccessIterator>)
+    __glibcxx_requires_valid_range(__first, __last);
+
+    if (__first == __last)
+      return;
+
+    typedef typename std::iterator_traits<_RandomAccessIterator>::difference_type
+        _DistanceType;
+
+    typedef typename std::make_unsigned<_DistanceType>::type __ud_type;
+    typedef typename std::uniform_int_distribution<__ud_type> __distr_type;
+    typedef typename __distr_type::param_type __p_type;
+
+    typedef typename std::remove_reference<_UniformRandomNumberGenerator>::type
+        _Gen;
+    typedef typename std::common_type<typename _Gen::result_type, __ud_type>::type
+        __uc_type;
+
+    const __uc_type __urngrange = __g.max() - __g.min();
+    const __uc_type __urange = __uc_type(__last - __first);
+
+    if (__urngrange / __urange >= __urange)
+      // I.e. (__urngrange >= __urange * __urange) but without wrap issues.
+    {
+      _RandomAccessIterator __i = __first + 1;
+
+      // Since we know the range isn't empty, an even number of elements
+      // means an uneven number of elements /to swap/, in which case we
+      // do the first one up front:
+
+      if ((__urange % 2) == 0)
+      {
+        __distr_type __d{0, 1};
+        std::iter_swap(__i++, __first + __d(__g));
+      }
+
+      // Now we know that __last - __i is even, so we do the rest in pairs,
+      // using a single distribution invocation to produce swap positions
+      // for two successive elements at a time:
+
+      while (__i != __last)
+      {
+        const __uc_type __swap_range = __uc_type(__i - __first) + 1;
+
+        const std::pair<__uc_type, __uc_type> __pospos =
+            __gen_two_uniform_ints(__swap_range, __swap_range + 1, __g);
+
+        std::iter_swap(__i++, __first + __pospos.first);
+        std::iter_swap(__i++, __first + __pospos.second);
+      }
+
+      return;
+    }
+
+    __distr_type __d;
+
+    for (_RandomAccessIterator __i = __first + 1; __i != __last; ++__i)
+      std::iter_swap(__i, __first + __d(__g, __p_type(0, __i - __first)));
+  }
+
+  template<typename _InputIterator, typename _Tp>
+  _GLIBCXX20_CONSTEXPR
+  inline _InputIterator
+  find(_InputIterator __first, _InputIterator __last,
+       const _Tp& __val)
+  {
+    // concept requirements
+    __glibcxx_function_requires(_InputIteratorConcept<_InputIterator>)
+    __glibcxx_function_requires(_EqualOpConcept<
+                                typename iterator_traits<_InputIterator>::value_type, _Tp>)
+    __glibcxx_requires_valid_range(__first, __last);
+    return std::__find_if(__first, __last,
+                          __gnu_cxx::__ops::__iter_equals_val(__val));
+  }
   private:
   std::vector<std::vector<int>> conflictQueue = {
       std::vector<int>({0, 0, 0}),
@@ -38,38 +129,50 @@ class Surface// store all cells
       std::vector<int>({-1, 1, -1}),
       std::vector<int>({-1, -1, 1}),
       std::vector<int>({-1, -1, -1})};
-  Octree<std::vector<Cell *>> tree = Octree<std::vector<Cell *>>(4096);
+  int treeSize = MAXRADIUS * 4;
+  int halfOfTreeSize = MAXRADIUS * 2;
+  int treeSizeZ;
+  int halfOfTreeSizeZ;
+  std::vector<std::vector<std::vector<std::vector<Cell *>>>> tree;
   int densityOfMeasurements = 100;
-  double lastMeanRadius = 0;
-  double currentMeanRadius = 0;
+  float lastMeanRadius = 0;
+  float currentMeanRadius = 0;
   struct angle {
-    double sin;
-    double cos;
+    float sin;
+    float cos;
+    angle(float sin, float cos):sin(sin),cos(cos){}
   };
   struct vector2d {
-    double x;
-    double y;
+    float x;
+    float y;
+    vector2d(float x, float y):x(x),y(y){}
   };
   std::vector<Cell> cells;
   std::vector<Cell *> aliveCells;
   std::vector<angle> angles;
-  double initialX = 0;
-  double initialY = 0;
-  double initialZ = 0;
+  float initialX = 0;
+  float initialY = 0;
+  float initialZ = 0;
   int id;
   int numOfAngles;
   int stateCounter = 0;
   int iterationCounter = 0;
   int aliveCellsCounter;
-  double thickness;
-  double spawnDistance = 1;
-  double cellRadius = spawnDistance / 2;
+  float thickness;
+  float halfOfThickness;
+  float spawnDistance = 1;
+  float cellRadius = spawnDistance / 2;
   std::random_device rd;
   std::mt19937 gen;
+  std::uniform_real_distribution<float> dis;
   [[nodiscard]] bool circleIsOverCircle(const Cell &cell1, const Cell cell2) const {
-    if (std::abs(cell1.getX() - cell2.getX()) < 2 * cellRadius) {
-      if (std::abs(cell1.getY() - cell2.getY()) < 2 * cellRadius) {
-        if (dstBtw2Pts(cell1, cell2) < 2 * cellRadius) {
+    float distZ = cell1.getZ() - cell2.getZ();
+    float distX = cell1.getX() - cell2.getX();
+    float distY = cell1.getY() - cell2.getY();
+    if (std::abs(distX) < 1) {
+      if (std::abs(distZ) < 1) {
+        //        if (dstBtw2Pts(cell1, cell2) < 1) {
+        if (pow(distX, 2) + pow(distY, 2) + pow(distZ, 2) < 1) {
           return true;
         }
       }
@@ -78,34 +181,41 @@ class Surface// store all cells
   }
 
   public:
-  explicit Surface(int i, int numberOfAngles, double thick) : id(i), numOfAngles(numberOfAngles), thickness(thick) {
-    extern const double LIMITOFCELLS;
-    extern const int ITERATIONBYONE;
+  explicit Surface(int i, int numberOfAngles, float thick) : id(i), numOfAngles(numberOfAngles), thickness(thick) {
+    treeSizeZ = 5 + thickness * 3;
+    halfOfTreeSizeZ = treeSizeZ / 2;
+    halfOfThickness = thickness / 2;
     gen = std::mt19937(std::chrono::system_clock::now().time_since_epoch().count());
+    dis = std::uniform_real_distribution<float>(0.0, 1.0);
     aliveCellsCounter = 1;
     cells.reserve(pow(MAXRADIUS / cellRadius, 2) * (thickness + 1) + 2 * ITERATIONBYONE);
-    for (double angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / numOfAngles) {
+    for (float angle = 0; angle < 2 * M_PI; angle += (2 * M_PI) / numOfAngles) {
       angles.emplace_back(sin(angle), cos(angle));
+    }
+    for (int i = 0; i < treeSize; i++) {
+      tree.emplace_back();
+      for (int j = 0; j < treeSize; j++) {
+        tree.back().emplace_back();
+        for (int k = 0; k < treeSizeZ; k++) {
+          tree.back().back().emplace_back();
+          tree.back().back().back().reserve(1);
+        }
+      }
     }
     addCell(initialX, initialY, initialZ);
   }
   ~Surface() {
     cells.clear();
   }
-  void addCell(double x, double y, double z) {
+  void addCell(float x, float y, float z) {
     cells.emplace_back(x, y, z);
     aliveCells.emplace_back(&cells.back());
     aliveCellsCounter++;
-    if (tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048) != tree.emptyValue()) {
-      tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048).push_back(&cells.back());
-    } else {
-      tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048) = std::vector<Cell *>();
-      tree(std::floor(x) + 2048, std::floor(y) + 2048, std::floor(z) + 2048).push_back(&cells.back());
-    }
+    tree[std::floor(x) + halfOfTreeSize][std::floor(y) + halfOfTreeSize][std::floor(z) + halfOfTreeSizeZ].push_back(&cells.back());
   }
   void deadCell(Cell *c) {
     c->death();
-    auto it = std::find(aliveCells.begin(), aliveCells.end(), c);
+    auto it = find(aliveCells.begin(), aliveCells.end(), c);
     if (it != aliveCells.end()) {
       std::swap(*it, aliveCells.back());
       aliveCells.pop_back();
@@ -113,21 +223,23 @@ class Surface// store all cells
     aliveCellsCounter--;
   }
   bool cellIsConflicting(const Cell cell) {
-    int x = std::floor(cell.getX()) + 2048;
-    int y = std::floor(cell.getY()) + 2048;
-    int z = std::floor(cell.getZ()) + 2048;
-    for (auto dir : conflictQueue) {
-      for (auto const cellTemp : tree(x + dir[0], y + dir[1], z + dir[2])) {
-        if (circleIsOverCircle(*cellTemp, cell)) {
-          return true;
+    int x = std::floor(cell.getX()) + halfOfTreeSize;
+    int y = std::floor(cell.getY()) + halfOfTreeSize;
+    int z = std::floor(cell.getZ()) + halfOfTreeSizeZ;
+    for (auto &dir : conflictQueue) {
+      if (!tree[x + dir[0]][y + dir[1]][z + dir[2]].empty()) {
+        for (auto const &cellTemp : tree[x + dir[0]][y + dir[1]][z + dir[2]]) {
+          if (circleIsOverCircle(*cellTemp, cell)) {
+            return true;
+          }
         }
       }
     }
     return false;
   }
   vector2d getCenterOfMassFromLiving() {
-    double sumX = 0;
-    double sumY = 0;
+    float sumX = 0;
+    float sumY = 0;
     int counter = 0;
     for (const Cell *cell : aliveCells) {
       counter++;
@@ -136,9 +248,12 @@ class Surface// store all cells
     }
     return vector2d(sumX / counter, sumY / counter);
   }
-  int getNumberOfCells() { return cells.size(); }
   [[maybe_unused]] [[nodiscard]] int getAliveCellsCounter() const { return aliveCellsCounter; }
   void update(int numberOfIteration) {
+    float halfOfThicknessTrue = halfOfThickness-0.5;
+    float x = 0;
+    float y = 0;
+    float z = 0;
     for (int i = 0; i < numberOfIteration; i++) {
       iterationCounter++;
       unsigned long index = gen() % aliveCells.size();
@@ -147,17 +262,19 @@ class Surface// store all cells
         bool isConflicting;
         if (thickness > 1) {
           // 3D VERSION -------------------------------------------------
-          std::shuffle(angles.begin(), angles.end(), gen);
+          if (i % 2 == 0) {
+          }
+          shuffle(angles.begin(), angles.end(), gen);
           auto theta = angles;
-          std::shuffle(angles.begin(), angles.end(), gen);
+          shuffle(angles.begin(), angles.end(), gen);
           auto phi = angles;
           for (const angle &angle1 : theta) {
-            for (const angle &angle2 : phi) {
-              double z = cell->getZ() + angle1.sin;
-              isConflicting = z > thickness / 2 || z < -thickness / 2;
-              if (!isConflicting) {
-                double x = cell->getX() + angle1.cos * angle2.cos;
-                double y = cell->getY() + angle1.cos * angle2.sin;
+            z = cell->getZ() + angle1.sin;
+            isConflicting = z > halfOfThicknessTrue || z < -halfOfThicknessTrue;
+            if (!isConflicting) {
+              for (const angle &angle2 : phi) {
+                x = cell->getX() + angle1.cos * angle2.cos;
+                y = cell->getY() + angle1.cos * angle2.sin;
                 isConflicting = cellIsConflicting(Cell(x, y, z));
                 if (!isConflicting) {
                   addCell(x, y, z);
@@ -168,11 +285,11 @@ class Surface// store all cells
           }
         } else {
           // 2D VERSION -------------------------------------------------
-          std::shuffle(angles.begin(), angles.end(), gen);
+          shuffle(angles.begin(), angles.end(), gen);
           for (const angle &angle : angles) {
-            double x = cell->getX() + angle.cos;
-            double y = cell->getY() + angle.sin;
-            double z = 0;
+            float x = cell->getX() + angle.cos;
+            float y = cell->getY() + angle.sin;
+            float z = 0;
             isConflicting = cellIsConflicting(Cell(x, y, z));
             if (!isConflicting) {
               addCell(x, y, z);
@@ -189,25 +306,24 @@ class Surface// store all cells
         currentMeanRadius = getMeanRadiusOfLivingCells();
         if (currentMeanRadius > lastMeanRadius + 2) {
           lastMeanRadius = currentMeanRadius;
-          //          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("Id" + std::to_string(id) + ".csv");
-          //          saveToFileSDMean("Id" + std::to_string(id) + ".csv");
-          //          saveToFile("Id" + std::to_string(id) + "_" + std::to_string(stateCounter++) + ".csv");
+          saveToFileMeanRadiusOfLivingCellsNumOfLivingCells("MRNLC"+std::to_string(thickness).substr(0,3)+ "Id" + std::to_string(id) + ".csv");
+          saveToFileSDMean("SD"+std::to_string(thickness).substr(0,3)+ "Id" + std::to_string(id) + ".csv");
         }
       }
     }
   }
-  static double dstBtw2Pts(const Cell c1, const Cell c2) {
-    return sqrt(pow(std::abs(c1.getX() - c2.getX()), 2) + pow(std::abs(c1.getY() - c2.getY()), 2) + pow(std::abs(c1.getZ() - c2.getZ()), 2));
+  static float dstBtw2Pts(const Cell c1, const Cell c2) {
+    return sqrt(pow(c1.getX() - c2.getX(), 2) + pow(c1.getY() - c2.getY(), 2) + pow(c1.getZ() - c2.getZ(), 2));
   }
-  static double dstBtw2Pts(const vector2d v, const Cell c) {
-    return sqrt(pow(std::abs(v.x - c.getX()), 2) + pow(std::abs(v.y - c.getY()), 2));
+  static float dstBtw2Pts(const vector2d v, const Cell c) {
+    return sqrt(pow(v.x - c.getX(), 2) + pow(v.y - c.getY(), 2));
   }
-  static double dstBtw2Pts(const vector2d v, const Cell *c) {
-    return sqrt(pow(std::abs(v.x - c->getX()), 2) + pow(std::abs(v.y - c->getY()), 2));
+  static float dstBtw2Pts(const vector2d v, const Cell *c) {
+    return sqrt(pow(v.x - c->getX(), 2) + pow(v.y - c->getY(), 2));
   }
-  double getMeanRadiusOfLivingCells() {
+  float getMeanRadiusOfLivingCells() {
     int counter = 0;
-    double sum = 0;
+    float sum = 0;
     const vector2d center = getCenterOfMassFromLiving();
     for (const Cell *cell : aliveCells) {
       counter++;
@@ -215,7 +331,7 @@ class Surface// store all cells
     }
     return sum / counter;
   }
-  int getNumberOfCellsEnclosedByRadius(double radius) {
+  int getNumberOfCellsEnclosedByRadius(float radius) {
     int counter = 0;
     vector2d center = getCenterOfMassFromLiving();
     for (const Cell cell : cells) {
@@ -227,31 +343,31 @@ class Surface// store all cells
   }
   [[maybe_unused]] void saveToFileAllNumberOfCellsEnclosedByRadius(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = std::to_string(thickness) + "Thickness/Density/" + fileName;
+    std::string fullPath = fileName;
     fout.open(fullPath);
-    double R = getMeanRadiusOfLivingCells() + 100;
-    double step = 5;
-    for (double r = step; r <= R; r += step) {
+    float R = getMeanRadiusOfLivingCells() + 100;
+    float step = 5;
+    for (float r = step; r <= R; r += step) {
       fout << std::pow(r / cellRadius, 2) << "\t" << getNumberOfCellsEnclosedByRadius(r) << "\n";
     }
     fout.close();
   }
   [[maybe_unused]] void saveToFileMeanRadiusOfLivingCellsNumOfLivingCells(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = std::to_string(thickness) + "Thickness/Growth/" + fileName;
+    std::string fullPath = fileName;
     fout.open(fullPath, std::ios_base::app);
-    fout << 2 * getMeanRadiusOfLivingCells() / cellRadius << "\t" << aliveCellsCounter << "\n";// poprawka błąd w pracy
+    fout << /*2 * */  getMeanRadiusOfLivingCells() / cellRadius << "\t" << aliveCellsCounter << "\n";// poprawka błąd w pracy USUNIETA
     fout.close();
   }
-  double getSD() {
-    double meanRadius = getMeanRadiusOfLivingCells();
+  float getSD() {
+    float meanRadius = getMeanRadiusOfLivingCells();
     const vector2d center = getCenterOfMassFromLiving();
-    std::vector<double> deviations;
+    std::vector<float> deviations;
     for (const Cell *cell : aliveCells) {
       deviations.push_back(pow(meanRadius - dstBtw2Pts(center, cell), 2));
     }
-    double variance = 0;
-    for (double v : deviations) {
+    float variance = 0;
+    for (float v : deviations) {
       variance += v;
     }
     variance /= deviations.size();
@@ -259,14 +375,14 @@ class Surface// store all cells
   }
   void saveToFileSDMean(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = std::to_string(thickness) + "Thickness/SD/" + fileName;
+    std::string fullPath = fileName;
     fout.open(fullPath, std::ios_base::app);
     fout << getMeanRadiusOfLivingCells() / cellRadius << "\t" << getSD() << "\n";
     fout.close();
   }
   [[maybe_unused]] void saveToFile(const std::string &fileName) {
     std::ofstream fout;
-    std::string fullPath = std::to_string(thickness) + "Thickness/Spaces/" + fileName;
+    std::string fullPath = fileName;
     fout.open(fullPath);
     for (auto const cell : cells) {
       fout << cell.getX() * 10 << "\t" << cell.getY() * 10 << "\t" << cell.getZ() * 10 << "\t";

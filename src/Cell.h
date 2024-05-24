@@ -1,12 +1,13 @@
 class Cell {
   private:
   bool status;
-  double x;
-  double y;
-  double z;
+  float x;
+  float y;
+  float z;
+
 
   public:
-  Cell(double X, double Y, double Z):x(X),y(Y),z(Z),status(true){}
+  Cell(float X, float Y, float Z):x(X),y(Y),z(Z),status(true){}
   void death() {
     status = false;
   }
@@ -18,7 +19,7 @@ class Cell {
     return *this;
   }
   [[nodiscard]] bool getStatus() const { return status; }
-  [[nodiscard]] double getX() const { return x; }
-  [[nodiscard]] double getY() const { return y; }
-  [[nodiscard]] double getZ() const { return z; }
+  [[nodiscard]] float getX() const { return x; }
+  [[nodiscard]] float getY() const { return y; }
+  [[nodiscard]] float getZ() const { return z; }
 };
